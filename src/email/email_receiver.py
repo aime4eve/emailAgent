@@ -1,0 +1,125 @@
+import poplib
+import email
+from email.header import decode_header
+import os
+from datetime import datetime
+from src.email.config import EMAIL_CONFIG, SAVE_DIRECTORY
+
+class EmailReceiver:
+    def __init__(self, config):
+        self.config = config
+        self.pop3_server = None
+
+    def connect(self):
+        try:
+            self.pop3_server = poplib.POP3(self.config['server'])
+            self.pop3_server.user(self.config['user'])
+            self.pop3_server.pass_(self.config['password'])
+            print(f"Successfully connected to {self.config['server']}")
+            return True
+        except poplib.error_proto as e:
+            print(f"Error connecting to POP3 server: {e}")
+            return False
+
+    def fetch_emails(self):
+        if not self.pop3_server:
+            print("Not connected to POP3 server.")
+            return
+
+        try:
+            num_messages = len(self.pop3_server.list()[1])
+            print(f"Found {num_messages} new emails.")
+
+            for i in range(num_messages):
+                raw_email = b'\n'.join(self.pop3_server.retr(i + 1)[1])
+                msg = email.message_from_bytes(raw_email)
+                self.parse_and_save_email(msg)
+
+        except poplib.error_proto as e:
+            print(f"Error fetching emails: {e}")
+
+    @staticmethod
+    def sanitize_filename(filename):
+        # Remove illegal characters from filename
+        return "".join(c for c in filename if c.isalnum() or c in (' ', '_')).rstrip()
+
+    def parse_and_save_email(self, msg):
+        subject = self.decode_header_field(msg["Subject"])
+        sender = self.decode_header_field(msg["From"])
+        date_str = self.decode_header_field(msg["Date"])
+
+        # Parse date
+        try:
+            # Try to parse date with timezone info
+            dt = datetime.strptime(date_str, '%a, %d %b %Y %H:%M:%S %z')
+            timestamp = dt.strftime('%Y%m%d_%H%M%S')
+        except ValueError:
+            # Fallback for different date formats
+            try:
+                dt = datetime.strptime(date_str, '%a, %d %b %Y %H:%M:%S %Z')
+                timestamp = dt.strftime('%Y%m%d_%H%M%S')
+            except ValueError:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+
+        # Sanitize sender and subject to be used in filename
+        safe_sender = self.sanitize_filename(sender)
+        safe_subject = self.sanitize_filename(subject)
+
+        # Create a unique filename
+        filename = f"{timestamp}_{safe_sender}_{safe_subject}.eml"
+        filepath = os.path.join(SAVE_DIRECTORY, filename)
+
+        with open(filepath, 'wb') as f:
+            f.write(msg.as_bytes())
+        print(f"Saved email to {filepath}")
+
+        # Extract and print body
+        body = self.get_email_body(msg)
+        print(f"Email from: {sender}")
+        print(f"Subject: {subject}")
+        # print(f"Body: {body[:200]}...") # Print first 200 chars of body
+
+    def decode_header_field(self, header_field):
+        if header_field is None:
+            return ""
+        decoded_parts = decode_header(header_field)
+        decoded_string = ""
+        for part, encoding in decoded_parts:
+            if isinstance(part, bytes):
+                decoded_string += part.decode(encoding if encoding else 'utf-8', errors='ignore')
+            else:
+                decoded_string += part
+        return decoded_string
+
+    def get_email_body(self, msg):
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                content_disposition = str(part.get("Content-Disposition"))
+
+                if content_type == "text/plain" and "attachment" not in content_disposition:
+                    charset = part.get_content_charset()
+                    if charset:
+                        return part.get_payload(decode=True).decode(charset, errors='ignore')
+                    else:
+                        return part.get_payload(decode=True).decode(errors='ignore')
+        else:
+            charset = msg.get_content_charset()
+            if charset:
+                return msg.get_payload(decode=True).decode(charset, errors='ignore')
+            else:
+                return msg.get_payload(decode=True).decode(errors='ignore')
+        return ""
+
+
+    def disconnect(self):
+        if self.pop3_server:
+            self.pop3_server.quit()
+            print("Disconnected from POP3 server.")
+
+if __name__ == '__main__':
+    receiver = EmailReceiver(EMAIL_CONFIG)
+    if receiver.connect():
+        receiver.fetch_emails()
+        receiver.disconnect()

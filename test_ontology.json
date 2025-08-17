@@ -1,0 +1,58 @@
+{
+  "name": "Generated Ontology",
+  "version": "1.0.0",
+  "description": "从包含3个节点和2条边的知识图谱自动生成",
+  "namespace": null,
+  "created_at": "2025-08-17T03:10:26.847284",
+  "updated_at": "2025-08-17T03:10:26.847444",
+  "classes": {
+    "人员": {
+      "name": "人员",
+      "description": "从2个实例推断的人员类",
+      "parent_classes": [],
+      "properties": {},
+      "instances_count": 2,
+      "examples": [
+        "张三",
+        "李四"
+      ]
+    },
+    "项目": {
+      "name": "项目",
+      "description": "从1个实例推断的项目类",
+      "parent_classes": [],
+      "properties": {},
+      "instances_count": 1,
+      "examples": [
+        "项目A"
+      ]
+    }
+  },
+  "relations": {
+    "default": {
+      "name": "default",
+      "description": "从2个实例推断的default关系",
+      "domain_classes": [
+        "人员"
+      ],
+      "range_classes": [
+        "人员",
+        "项目"
+      ],
+      "properties": {},
+      "is_symmetric": false,
+      "is_transitive": false,
+      "is_functional": false,
+      "instances_count": 2,
+      "examples": [
+        {
+          "label": "同事"
+        },
+        {
+          "label": "参与"
+        }
+      ]
+    }
+  },
+  "metadata": {}
+}

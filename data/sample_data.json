@@ -1,0 +1,226 @@
+{
+  "nodes": [
+    {
+      "id": "huakuantong",
+      "label": "华宽通",
+      "type": "organization",
+      "properties": {
+        "industry": "科技"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "product",
+      "label": "产品",
+      "type": "concept",
+      "properties": {
+        "category": "分类"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "ultrasonic_meter",
+      "label": "超声波水表",
+      "type": "product",
+      "properties": {
+        "type": "测量设备"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "rumen_capsule",
+      "label": "瘤胃胶囊",
+      "type": "product",
+      "properties": {
+        "type": "医疗设备"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "customer",
+      "label": "客户",
+      "type": "concept",
+      "properties": {
+        "category": "分类"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "country",
+      "label": "国家",
+      "type": "concept",
+      "properties": {
+        "category": "地理"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "owen",
+      "label": "欧文",
+      "type": "person",
+      "properties": {
+        "role": "个人"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "china",
+      "label": "中国",
+      "type": "location",
+      "properties": {
+        "type": "国家"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "enterprise",
+      "label": "企业",
+      "type": "concept",
+      "properties": {
+        "category": "组织类型"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "huawei",
+      "label": "华为",
+      "type": "organization",
+      "properties": {
+        "industry": "科技"
+      },
+      "x": null,
+      "y": null
+    },
+    {
+      "id": "0b019704-0975-436a-9a4b-2dfae74b5ddc",
+      "label": "空气质量传感器",
+      "type": "product",
+      "properties": {
+        "type": "测量设备",
+        "category": "环境"
+      },
+      "x": null,
+      "y": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "9c8f47ed-7181-41d4-a3b4-6eaa785419cf",
+      "source_id": "product",
+      "target_id": "huakuantong",
+      "label": "属于",
+      "type": "belongs_to",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "7f75e8d2-b7ef-47d8-a136-20bb04bde93b",
+      "source_id": "ultrasonic_meter",
+      "target_id": "product",
+      "label": "是",
+      "type": "is_a",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "0354fe24-3d01-4a62-ad36-110354242d1a",
+      "source_id": "rumen_capsule",
+      "target_id": "product",
+      "label": "是",
+      "type": "is_a",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "368a9295-8477-432a-806f-ca7d67275480",
+      "source_id": "owen",
+      "target_id": "china",
+      "label": "位于",
+      "type": "located_in",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "6627830a-c714-4bdb-bde4-2702fc7fbe91",
+      "source_id": "huawei",
+      "target_id": "china",
+      "label": "位于",
+      "type": "located_in",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "4e70c3b4-cfe3-4eba-9be6-3653cb80aba7",
+      "source_id": "huakuantong",
+      "target_id": "china",
+      "label": "位于",
+      "type": "located_in",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "056bd6aa-c88e-4c7f-bbcf-765bbdf1ef99",
+      "source_id": "owen",
+      "target_id": "huawei",
+      "label": "关联",
+      "type": "related_to",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "9c9325b8-af94-4b00-8752-fd97ba85d4f9",
+      "source_id": "huawei",
+      "target_id": "enterprise",
+      "label": "是",
+      "type": "is_a",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "18693cab-9c82-40d6-9c6a-585d084487bf",
+      "source_id": "huakuantong",
+      "target_id": "enterprise",
+      "label": "是",
+      "type": "is_a",
+      "properties": {},
+      "weight": 1
+    },
+    {
+      "id": "205ea809-e890-4845-90ed-b125367889f3",
+      "source_id": "china",
+      "target_id": "country",
+      "label": "是",
+      "type": "is_a",
+      "properties": {},
+      "weight": 1
+    }
+  ],
+  "metadata": {
+    "export_timestamp": "2025-08-17T02:24:45.600148",
+    "node_count": 13,
+    "edge_count": 10,
+    "node_types": [
+      "product",
+      "organization",
+      "location",
+      "concept",
+      "person"
+    ],
+    "edge_types": [
+      "related_to",
+      "is_a",
+      "belongs_to",
+      "located_in"
+    ],
+    "format_version": "1.0"
+  }
+}

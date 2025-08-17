@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:kg="http://example.org/generated_ontology#">
+
+  <rdf:Description rdf:about="http://example.org/generated_ontology">
+    <rdfs:label>Generated Ontology</rdfs:label>
+    <rdfs:comment>从包含3个节点和2条边的知识图谱自动生成</rdfs:comment>
+    <kg:version>1.0.0</kg:version>
+    <kg:createdAt>2025-08-17T03:10:26.847284</kg:createdAt>
+    <kg:updatedAt>2025-08-17T03:10:26.847444</kg:updatedAt>
+  </rdf:Description>
+
+  <rdf:Description rdf:about="http://example.org/generated_ontology#人员">
+    <rdf:type rdf:resource="http://www.w3.org/2000/01/rdf-schema#Class"/>
+    <rdfs:label>人员</rdfs:label>
+    <rdfs:comment>从2个实例推断的人员类</rdfs:comment>
+    <kg:instancesCount>2</kg:instancesCount>
+  </rdf:Description>
+
+  <rdf:Description rdf:about="http://example.org/generated_ontology#项目">
+    <rdf:type rdf:resource="http://www.w3.org/2000/01/rdf-schema#Class"/>
+    <rdfs:label>项目</rdfs:label>
+    <rdfs:comment>从1个实例推断的项目类</rdfs:comment>
+    <kg:instancesCount>1</kg:instancesCount>
+  </rdf:Description>
+
+  <rdf:Description rdf:about="http://example.org/generated_ontology#default">
+    <rdf:type rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"/>
+    <rdfs:label>default</rdfs:label>
+    <rdfs:comment>从2个实例推断的default关系</rdfs:comment>
+    <kg:instancesCount>2</kg:instancesCount>
+    <rdfs:domain rdf:resource="http://example.org/generated_ontology#人员"/>
+    <rdfs:range rdf:resource="http://example.org/generated_ontology#人员"/>
+    <rdfs:range rdf:resource="http://example.org/generated_ontology#项目"/>
+  </rdf:Description>
+
+</rdf:RDF>
