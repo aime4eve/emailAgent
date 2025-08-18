@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://example.org/generated_ontology#"
+     xml:base="http://example.org/generated_ontology"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="http://example.org/generated_ontology">
+        <rdfs:label>Generated Ontology</rdfs:label>
+        <rdfs:comment>从包含3个节点和2条边的知识图谱自动生成</rdfs:comment>
+        <owl:versionInfo>1.0.0</owl:versionInfo>
+    </owl:Ontology>
+
+    <!-- 人员 -->
+    <owl:Class rdf:about="#人员">
+        <rdfs:label>人员</rdfs:label>
+        <rdfs:comment>从2个实例推断的人员类</rdfs:comment>
+    </owl:Class>
+
+    <!-- 项目 -->
+    <owl:Class rdf:about="#项目">
+        <rdfs:label>项目</rdfs:label>
+        <rdfs:comment>从1个实例推断的项目类</rdfs:comment>
+    </owl:Class>
+
+    <!-- default -->
+    <owl:ObjectProperty rdf:about="#default">
+        <rdfs:label>default</rdfs:label>
+        <rdfs:comment>从2个实例推断的default关系</rdfs:comment>
+        <rdfs:domain rdf:resource="#人员"/>
+        <rdfs:range rdf:resource="#人员"/>
+        <rdfs:range rdf:resource="#项目"/>
+    </owl:ObjectProperty>
+
+</rdf:RDF>

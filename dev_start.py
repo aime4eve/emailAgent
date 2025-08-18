@@ -1,21 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-知识图谱应用启动脚本
-"""
-
 import sys
 import os
+import runpy
 
-# 添加src目录到Python路径
-src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
-sys.path.insert(0, src_path)
-
-# 导入并运行应用
-from web_app.web_app_main import create_app
+# 将src目录添加到Python路径
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 if __name__ == '__main__':
-    app = create_app()
-    print("知识图谱应用正在启动...")
-    print("请在浏览器中访问: http://127.0.0.1:8050")
-    app.run(debug=True, host='127.0.0.1', port=8050)
+    # 直接运行web_app_main.py，使其__name__ == '__main__'
+    runpy.run_module('interfaces.web_app.web_app_main', run_name='__main__')
