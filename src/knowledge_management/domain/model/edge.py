@@ -61,14 +61,32 @@ class Edge:
         Returns:
             边的字典表示
         """
+        def convert_numpy_types(obj):
+            """转换numpy类型为Python原生类型"""
+            try:
+                import numpy as np
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, dict):
+                    return {k: convert_numpy_types(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_numpy_types(item) for item in obj]
+            except ImportError:
+                pass
+            return obj
+        
         return {
             'id': self.id,
             'source_id': self.source_id,
             'target_id': self.target_id,
             'label': self.label,
             'type': self.type,
-            'properties': self.properties,
-            'weight': self.weight
+            'properties': convert_numpy_types(self.properties),
+            'weight': convert_numpy_types(self.weight)
         }
     
     @classmethod

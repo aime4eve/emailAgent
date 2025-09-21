@@ -296,8 +296,25 @@ class KnowledgeGraph:
         Args:
             filepath: 文件路径
         """
+        import json
+        
+        class NumpyEncoder(json.JSONEncoder):
+            """自定义JSON编码器，处理numpy类型"""
+            def default(self, obj):
+                try:
+                    import numpy as np
+                    if isinstance(obj, np.integer):
+                        return int(obj)
+                    elif isinstance(obj, np.floating):
+                        return float(obj)
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                except ImportError:
+                    pass
+                return super().default(obj)
+        
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
+            json.dump(self.to_dict(), f, ensure_ascii=False, indent=2, cls=NumpyEncoder)
             
     @classmethod
     def load_from_json(cls, filepath: str) -> 'KnowledgeGraph':
