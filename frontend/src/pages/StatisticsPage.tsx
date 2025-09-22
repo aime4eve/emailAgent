@@ -371,11 +371,6 @@ const StatisticsPage: React.FC = () => {
                 size: 5,
                 shape: 'diamond',
               }}
-              label={{
-                style: {
-                  fill: '#aaa',
-                },
-              }}
             />
           </Card>
         </Col>
@@ -386,13 +381,6 @@ const StatisticsPage: React.FC = () => {
               xField="type"
               yField="count"
               height={300}
-              label={{
-                position: 'middle',
-                style: {
-                  fill: '#FFFFFF',
-                  opacity: 0.6,
-                },
-              }}
               meta={{
                 type: {
                   alias: '实体类型',
@@ -415,9 +403,8 @@ const StatisticsPage: React.FC = () => {
               colorField="type"
               radius={0.8}
               height={300}
-              label={{
-                type: 'outer',
-                content: '{name} {percentage}',
+              legend={{
+                position: 'right',
               }}
               interactions={[
                 {

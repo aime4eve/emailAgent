@@ -70,13 +70,28 @@ const GraphPage: React.FC = () => {
   const loadGraphData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await graphService.getGraphData();
-      if (response.success && response.data) {
-        setGraphData(response.data);
-        message.success('图谱数据加载成功');
-      } else {
-        message.error(response.error || '加载失败');
-      }
+      // 暂时使用模拟数据，因为后端图谱API尚未实现
+      const mockData: KnowledgeGraphData = {
+        nodes: [
+          { id: '1', label: '张三', type: 'PERSON', properties: { age: 30 } },
+          { id: '2', label: '李四', type: 'PERSON', properties: { age: 25 } },
+          { id: '3', label: '北京公司', type: 'ORGANIZATION', properties: { industry: '科技' } },
+          { id: '4', label: '项目A', type: 'CONCEPT', properties: { status: '进行中' } },
+        ],
+        edges: [
+          { id: 'e1', source: '1', target: '3', label: '工作于', type: 'WORKS_AT', weight: 1 },
+          { id: 'e2', source: '2', target: '3', label: '工作于', type: 'WORKS_AT', weight: 1 },
+          { id: 'e3', source: '1', target: '4', label: '负责', type: 'RESPONSIBLE_FOR', weight: 1 },
+        ],
+        metadata: {
+          nodeCount: 4,
+          edgeCount: 3,
+          lastUpdated: new Date().toISOString(),
+        },
+      };
+      
+      setGraphData(mockData);
+      message.success('图谱数据加载成功（模拟数据）');
     } catch (error) {
       message.error('加载图谱数据时发生错误');
       console.error('Load graph data error:', error);
@@ -96,12 +111,28 @@ const GraphPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await graphService.searchGraph(searchQuery, 'all');
-      if (response.success && response.data) {
-        setGraphData(response.data);
-        message.success(`找到 ${response.data.nodes.length} 个相关节点`);
+      // 暂时使用本地搜索，因为后端搜索API尚未实现
+      if (graphData) {
+        const filteredNodes = graphData.nodes.filter(node => 
+          node.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          node.type.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        
+        const nodeIds = new Set(filteredNodes.map(node => node.id));
+        const filteredEdges = graphData.edges.filter(edge => 
+          nodeIds.has(edge.source as string) || nodeIds.has(edge.target as string)
+        );
+        
+        const filteredData: KnowledgeGraphData = {
+          ...graphData,
+          nodes: filteredNodes,
+          edges: filteredEdges,
+        };
+        
+        setGraphData(filteredData);
+        message.success(`找到 ${filteredNodes.length} 个相关节点`);
       } else {
-        message.error(response.error || '搜索失败');
+        message.warning('请先加载图谱数据');
       }
     } catch (error) {
       message.error('搜索时发生错误');
@@ -109,7 +140,7 @@ const GraphPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, loadGraphData]);
+  }, [searchQuery, loadGraphData, graphData]);
 
   /**
    * 初始化D3图谱

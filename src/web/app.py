@@ -29,6 +29,15 @@ except ImportError as e:
     EntityExtractionService = None
     MLEnhancementService = None
 
+# 导入本体管理相关模块
+try:
+    from src.knowledge_management.ontology_service import OntologyService
+    from src.knowledge_management.ontology_model import Ontology
+except ImportError as e:
+    logging.warning(f"本体管理模块导入失败: {e}")
+    OntologyService = None
+    Ontology = None
+
 def create_app(config=None):
     """创建Flask应用实例
     
@@ -402,6 +411,428 @@ def register_routes(app):
             app.logger.error(f"文件知识抽取接口异常: {str(e)}")
             return jsonify({
                 'error': '服务内部错误',
+                'message': str(e)
+            }), 500
+    
+    # 本体管理API路由
+    @app.route('/api/ontologies', methods=['GET', 'OPTIONS'])
+    def get_ontologies():
+        """获取本体列表
+        
+        查询参数:
+        - page: 页码 (默认1)
+        - page_size: 每页大小 (默认10)
+        - search: 搜索关键词
+        - tags: 标签过滤 (逗号分隔)
+        
+        Returns:
+            JSON响应包含本体列表和分页信息
+        """
+        # 处理OPTIONS预检请求
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+            
+        app.logger.info(f"收到获取本体列表请求: {request.method} {request.url}")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 获取查询参数
+            page = int(request.args.get('page', 1))
+            page_size = int(request.args.get('page_size', 10))
+            search_term = request.args.get('search', None)
+            tags_str = request.args.get('tags', None)
+            tags = tags_str.split(',') if tags_str else None
+            
+            # 初始化服务
+            ontology_service = OntologyService()
+            
+            # 获取本体列表
+            result = ontology_service.list_ontologies(
+                page=page,
+                page_size=page_size,
+                search_term=search_term,
+                tags=tags
+            )
+            
+            app.logger.info(f"返回本体列表: {result['total']}个本体")
+            return jsonify(result)
+            
+        except Exception as e:
+            app.logger.error(f"获取本体列表失败: {str(e)}")
+            return jsonify({
+                'error': '获取本体列表失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/ontologies/<ontology_id>', methods=['GET', 'OPTIONS'])
+    def get_ontology(ontology_id):
+        """获取特定本体详情
+        
+        Args:
+            ontology_id: 本体ID
+            
+        Returns:
+            JSON响应包含本体详细信息
+        """
+        # 处理OPTIONS预检请求
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+            
+        app.logger.info(f"收到获取本体详情请求: {ontology_id}")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 初始化服务
+            ontology_service = OntologyService()
+            
+            # 获取本体
+            ontology = ontology_service.get_ontology(ontology_id)
+            if not ontology:
+                return jsonify({'error': '本体不存在'}), 404
+            
+            app.logger.info(f"返回本体详情: {ontology.name}")
+            return jsonify(ontology.to_dict())
+            
+        except Exception as e:
+            app.logger.error(f"获取本体详情失败: {str(e)}")
+            return jsonify({
+                'error': '获取本体详情失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/ontologies', methods=['POST'])
+    def create_ontology():
+        """创建新本体
+        
+        请求体:
+        - name: 本体名称 (必需)
+        - description: 本体描述
+        - version: 版本号
+        - namespace: 命名空间
+        - author: 作者
+        - tags: 标签列表
+        - entity_types: 实体类型列表
+        - relation_types: 关系类型列表
+        
+        Returns:
+            JSON响应包含创建的本体信息
+        """
+        app.logger.info(f"收到创建本体请求: {request.method} {request.url}")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 获取请求数据
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': '请求数据格式错误'}), 400
+            
+            # 验证必需字段
+            if 'name' not in data or not data['name'].strip():
+                return jsonify({'error': '本体名称不能为空'}), 400
+            
+            # 初始化服务
+            ontology_service = OntologyService()
+            
+            # 创建本体
+            ontology = ontology_service.create_ontology(data)
+            
+            app.logger.info(f"本体创建成功: {ontology.name} (ID: {ontology.id})")
+            return jsonify(ontology.to_dict()), 201
+            
+        except ValueError as e:
+            app.logger.warning(f"本体创建验证失败: {str(e)}")
+            return jsonify({
+                'error': '本体创建验证失败',
+                'message': str(e)
+            }), 400
+        except Exception as e:
+            app.logger.error(f"创建本体失败: {str(e)}")
+            return jsonify({
+                'error': '创建本体失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/ontologies/<ontology_id>', methods=['PUT'])
+    def update_ontology(ontology_id):
+        """更新本体
+        
+        Args:
+            ontology_id: 本体ID
+            
+        请求体:
+        - name: 本体名称
+        - description: 本体描述
+        - version: 版本号
+        - namespace: 命名空间
+        - author: 作者
+        - tags: 标签列表
+        - entity_types: 实体类型列表
+        - relation_types: 关系类型列表
+        
+        Returns:
+            JSON响应包含更新后的本体信息
+        """
+        app.logger.info(f"收到更新本体请求: {ontology_id}")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 获取请求数据
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': '请求数据格式错误'}), 400
+            
+            # 初始化服务
+            ontology_service = OntologyService()
+            
+            # 更新本体
+            ontology = ontology_service.update_ontology(ontology_id, data)
+            if not ontology:
+                return jsonify({'error': '本体不存在'}), 404
+            
+            app.logger.info(f"本体更新成功: {ontology.name} (ID: {ontology.id})")
+            return jsonify(ontology.to_dict())
+            
+        except ValueError as e:
+            app.logger.warning(f"本体更新验证失败: {str(e)}")
+            return jsonify({
+                'error': '本体更新验证失败',
+                'message': str(e)
+            }), 400
+        except Exception as e:
+            app.logger.error(f"更新本体失败: {str(e)}")
+            return jsonify({
+                'error': '更新本体失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/ontologies/<ontology_id>', methods=['DELETE'])
+    def delete_ontology(ontology_id):
+        """删除本体
+        
+        Args:
+            ontology_id: 本体ID
+            
+        Returns:
+            JSON响应确认删除结果
+        """
+        app.logger.info(f"收到删除本体请求: {ontology_id}")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 初始化服务
+            ontology_service = OntologyService()
+            
+            # 删除本体
+            success = ontology_service.delete_ontology(ontology_id)
+            if not success:
+                return jsonify({'error': '本体不存在'}), 404
+            
+            app.logger.info(f"本体删除成功: {ontology_id}")
+            return jsonify({'message': '本体删除成功'})
+            
+        except Exception as e:
+            app.logger.error(f"删除本体失败: {str(e)}")
+            return jsonify({
+                'error': '删除本体失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/ontologies/import', methods=['POST', 'OPTIONS'])
+    def import_ontology():
+        """导入本体文件
+        
+        请求参数:
+        - file: 上传的本体文件
+        - format: 文件格式 (json, owl, rdf)
+        
+        Returns:
+            JSON响应包含导入的本体信息
+        """
+        # 处理OPTIONS预检请求
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+            
+        app.logger.info(f"收到本体导入请求: {request.method} {request.url}")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 检查是否有文件上传
+            if 'file' not in request.files:
+                return jsonify({'error': '没有上传文件'}), 400
+            
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'error': '文件名为空'}), 400
+            
+            # 获取文件格式
+            file_format = request.form.get('format', 'json').lower()
+            if file_format not in ['json', 'owl', 'rdf']:
+                return jsonify({'error': '不支持的文件格式'}), 400
+            
+            # 保存上传的文件
+            filename = file.filename
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            try:
+                # 初始化服务
+                ontology_service = OntologyService()
+                
+                # 导入本体
+                ontology = ontology_service.import_ontology(file_path, file_format)
+                
+                app.logger.info(f"本体导入成功: {ontology.name} (ID: {ontology.id})")
+                return jsonify(ontology.to_dict()), 201
+                
+            finally:
+                # 清理上传的文件
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+            
+        except ValueError as e:
+            app.logger.warning(f"本体导入验证失败: {str(e)}")
+            return jsonify({
+                'error': '本体导入验证失败',
+                'message': str(e)
+            }), 400
+        except Exception as e:
+            app.logger.error(f"导入本体失败: {str(e)}")
+            return jsonify({
+                'error': '导入本体失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/ontologies/<ontology_id>/export', methods=['GET', 'OPTIONS'])
+    def export_ontology(ontology_id):
+        """导出本体文件
+        
+        Args:
+            ontology_id: 本体ID
+            
+        查询参数:
+        - format: 导出格式 (json, owl, rdf, 默认json)
+        
+        Returns:
+            文件下载响应或JSON错误信息
+        """
+        # 处理OPTIONS预检请求
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+            
+        app.logger.info(f"收到本体导出请求: {ontology_id}")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 获取导出格式
+            export_format = request.args.get('format', 'json').lower()
+            if export_format not in ['json', 'owl', 'rdf']:
+                return jsonify({'error': '不支持的导出格式'}), 400
+            
+            # 初始化服务
+            ontology_service = OntologyService()
+            
+            # 导出本体
+            export_file_path = ontology_service.export_ontology(ontology_id, export_format)
+            
+            # 返回文件路径信息（实际应用中可能需要返回文件内容或下载链接）
+            app.logger.info(f"本体导出成功: {export_file_path}")
+            return jsonify({
+                'message': '本体导出成功',
+                'file_path': export_file_path,
+                'format': export_format
+            })
+            
+        except ValueError as e:
+            app.logger.warning(f"本体导出失败: {str(e)}")
+            return jsonify({
+                'error': '本体导出失败',
+                'message': str(e)
+            }), 400
+        except Exception as e:
+            app.logger.error(f"导出本体失败: {str(e)}")
+            return jsonify({
+                'error': '导出本体失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/ontologies/statistics', methods=['GET', 'OPTIONS'])
+    def get_ontology_statistics():
+        """获取本体统计信息
+        
+        Returns:
+            JSON响应包含统计信息
+        """
+        # 处理OPTIONS预检请求
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+            
+        app.logger.info(f"收到获取本体统计信息请求")
+        
+        try:
+            # 检查服务是否可用
+            if OntologyService is None:
+                return jsonify({
+                    'error': '本体管理服务不可用',
+                    'message': '请检查相关模块是否正确安装'
+                }), 503
+            
+            # 初始化服务
+            ontology_service = OntologyService()
+            
+            # 获取统计信息
+            statistics = ontology_service.get_ontology_statistics()
+            
+            app.logger.info(f"返回本体统计信息: {statistics['total_ontologies']}个本体")
+            return jsonify(statistics)
+            
+        except Exception as e:
+            app.logger.error(f"获取本体统计信息失败: {str(e)}")
+            return jsonify({
+                'error': '获取本体统计信息失败',
                 'message': str(e)
             }), 500
     

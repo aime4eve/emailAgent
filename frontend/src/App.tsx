@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography, Avatar, Dropdown, Space } from 'antd';
 import {
   ExperimentOutlined,
@@ -26,11 +26,24 @@ const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
 
 /**
- * 主应用组件
+ * 应用内容组件
  */
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
-  const [selectedKey, setSelectedKey] = React.useState('extraction');
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // 根据当前路径设置选中的菜单项
+  const getSelectedKey = () => {
+    const path = location.pathname;
+    if (path.includes('/extraction')) return 'extraction';
+    if (path.includes('/graph')) return 'graph';
+    if (path.includes('/ontology')) return 'ontology';
+    if (path.includes('/statistics')) return 'statistics';
+    return 'extraction';
+  };
+  
+  const selectedKey = getSelectedKey();
 
   // 菜单项配置
   const menuItems: MenuProps['items'] = [
@@ -80,7 +93,7 @@ const App: React.FC = () => {
 
   // 处理菜单点击
   const handleMenuClick = ({ key }: { key: string }) => {
-    setSelectedKey(key);
+    navigate(`/${key}`);
   };
 
   // 处理用户菜单点击
@@ -98,8 +111,7 @@ const App: React.FC = () => {
 
 
   return (
-    <Router>
-      <Layout className="full-height">
+    <Layout className="full-height">
         {/* 侧边栏 */}
         <Sider
           collapsible
@@ -216,6 +228,16 @@ const App: React.FC = () => {
           </Content>
         </Layout>
       </Layout>
+  );
+};
+
+/**
+ * 主应用组件
+ */
+const App: React.FC = () => {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 };
