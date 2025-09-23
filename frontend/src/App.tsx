@@ -17,9 +17,6 @@ import {
   FundOutlined,
   BulbOutlined,
   RobotOutlined,
-  AppstoreOutlined,
-  ContactsOutlined,
-  DashboardOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -64,7 +61,6 @@ const AppContent: React.FC = () => {
   const menuItems: MenuProps['items'] = [
     {
       key: 'core-functions',
-      icon: <AppstoreOutlined />,
       label: '核心功能',
       type: 'group',
       children: [
@@ -87,7 +83,6 @@ const AppContent: React.FC = () => {
     },
     {
       key: 'customer-management',
-      icon: <ContactsOutlined />,
       label: '客户管理',
       type: 'group',
       children: [
@@ -105,7 +100,6 @@ const AppContent: React.FC = () => {
     },
     {
       key: 'analysis-insights',
-      icon: <DashboardOutlined />,
       label: '分析洞察',
       type: 'group',
       children: [
@@ -131,15 +125,17 @@ const AppContent: React.FC = () => {
   // 获取所有菜单项的扁平化列表（用于标题显示）
   const getAllMenuItems = () => {
     const items: { key: string; label: string }[] = [];
-    menuItems.forEach(group => {
-      if (group && 'children' in group && group.children) {
-        group.children.forEach(child => {
-          if (child && 'key' in child && 'label' in child) {
-            items.push({ key: child.key as string, label: child.label as string });
-          }
-        });
-      }
-    });
+    if (menuItems) {
+      menuItems.forEach(group => {
+        if (group && 'children' in group && group.children) {
+          group.children.forEach(child => {
+            if (child && 'key' in child && 'label' in child) {
+              items.push({ key: child.key as string, label: child.label as string });
+            }
+          });
+        }
+      });
+    }
     return items;
   };
 
