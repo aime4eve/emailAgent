@@ -715,7 +715,7 @@ const InsightsPage: React.FC = () => {
               title="总需求价值"
               value={mockDemandTrends.reduce((sum, d) => sum + d.totalValue, 0)}
               prefix={<DollarOutlined />}
-              formatter={(value) => `$${Number(value).toLocaleString()}`}
+              formatter={(value) => `$${Number(value || 0).toLocaleString()}`}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
@@ -772,9 +772,7 @@ const InsightsPage: React.FC = () => {
                         angleField="hotIndex"
                         colorField="demandType"
                         radius={0.8}
-                        label={{
-                          content: '{name} {percentage}',
-                        }}
+                        label={false}
                         interactions={[{ type: 'element-active' }]}
                       />
                     </Card>

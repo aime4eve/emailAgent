@@ -154,6 +154,10 @@ const ExtractionPage: React.FC = () => {
    * 渲染实体标签
    */
   const renderEntityTags = (entities: Entity[]) => {
+    if (!entities || !Array.isArray(entities)) {
+      return null;
+    }
+
     const entityColors: Record<string, string> = {
       PERSON: 'blue',
       ORGANIZATION: 'green',
@@ -179,6 +183,10 @@ const ExtractionPage: React.FC = () => {
    * 渲染关系标签
    */
   const renderRelationTags = (relations: Relation[]) => {
+    if (!relations || !Array.isArray(relations)) {
+      return null;
+    }
+
     return relations.map((relation, index) => (
       <Tag
         key={`${relation.id}-${index}`}
@@ -326,11 +334,11 @@ const ExtractionPage: React.FC = () => {
                     message="抽取统计"
                     description={
                       <div>
-                        <Text>实体数量: {extractionResult.entities.length}</Text>
+                        <Text>实体数量: {extractionResult.entities?.length || 0}</Text>
                         <br />
-                        <Text>关系数量: {extractionResult.relations.length}</Text>
+                        <Text>关系数量: {extractionResult.relations?.length || 0}</Text>
                         <br />
-                        <Text>置信度: {(extractionResult.confidence * 100).toFixed(1)}%</Text>
+                        <Text>置信度: {((extractionResult.confidence || 0) * 100).toFixed(1)}%</Text>
                       </div>
                     }
                     type="info"
@@ -340,10 +348,10 @@ const ExtractionPage: React.FC = () => {
 
                   {/* 实体列表 */}
                   <div className="mb-24">
-                    <Title level={4}>实体 ({extractionResult.entities.length})</Title>
-                    {extractionResult.entities.length > 0 ? (
+                    <Title level={4}>实体 ({extractionResult.entities?.length || 0})</Title>
+                    {(extractionResult.entities?.length || 0) > 0 ? (
                       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                        {renderEntityTags(extractionResult.entities)}
+                        {renderEntityTags(extractionResult.entities || [])}
                       </div>
                     ) : (
                       <Empty description="未发现实体" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -354,10 +362,10 @@ const ExtractionPage: React.FC = () => {
 
                   {/* 关系列表 */}
                   <div>
-                    <Title level={4}>关系 ({extractionResult.relations.length})</Title>
-                    {extractionResult.relations.length > 0 ? (
+                    <Title level={4}>关系 ({extractionResult.relations?.length || 0})</Title>
+                    {(extractionResult.relations?.length || 0) > 0 ? (
                       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                        {renderRelationTags(extractionResult.relations)}
+                        {renderRelationTags(extractionResult.relations || [])}
                       </div>
                     ) : (
                       <Empty description="未发现关系" image={Empty.PRESENTED_IMAGE_SIMPLE} />

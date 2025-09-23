@@ -17,6 +17,9 @@ import {
   FundOutlined,
   BulbOutlined,
   RobotOutlined,
+  AppstoreOutlined,
+  ContactsOutlined,
+  DashboardOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -57,49 +60,90 @@ const AppContent: React.FC = () => {
   
   const selectedKey = getSelectedKey();
 
-  // 菜单项配置
+  // 菜单项配置 - 分类结构
   const menuItems: MenuProps['items'] = [
     {
-      key: 'extraction',
-      icon: <ExperimentOutlined />,
-      label: '知识抽取',
+      key: 'core-functions',
+      icon: <AppstoreOutlined />,
+      label: '核心功能',
+      type: 'group',
+      children: [
+        {
+          key: 'extraction',
+          icon: <ExperimentOutlined />,
+          label: '知识抽取',
+        },
+        {
+          key: 'graph',
+          icon: <NodeIndexOutlined />,
+          label: '知识图谱',
+        },
+        {
+          key: 'ontology',
+          icon: <DatabaseOutlined />,
+          label: '本体管理',
+        },
+      ],
     },
     {
-      key: 'graph',
-      icon: <NodeIndexOutlined />,
-      label: '知识图谱',
-    },
-    {
-      key: 'ontology',
-      icon: <DatabaseOutlined />,
-      label: '本体管理',
-    },
-    {
-      key: 'customers',
-      icon: <TeamOutlined />,
+      key: 'customer-management',
+      icon: <ContactsOutlined />,
       label: '客户管理',
+      type: 'group',
+      children: [
+        {
+          key: 'customers',
+          icon: <TeamOutlined />,
+          label: '客户管理',
+        },
+        {
+          key: 'analytics',
+          icon: <FundOutlined />,
+          label: '客户分析',
+        },
+      ],
     },
     {
-      key: 'analytics',
-      icon: <FundOutlined />,
-      label: '客户分析',
-    },
-    {
-      key: 'insights',
-      icon: <BulbOutlined />,
-      label: '需求洞察',
-    },
-    {
-      key: 'recommendations',
-      icon: <RobotOutlined />,
-      label: '智能推荐',
-    },
-    {
-      key: 'statistics',
-      icon: <BarChartOutlined />,
-      label: '统计分析',
+      key: 'analysis-insights',
+      icon: <DashboardOutlined />,
+      label: '分析洞察',
+      type: 'group',
+      children: [
+        {
+          key: 'insights',
+          icon: <BulbOutlined />,
+          label: '需求洞察',
+        },
+        {
+          key: 'recommendations',
+          icon: <RobotOutlined />,
+          label: '智能推荐',
+        },
+        {
+          key: 'statistics',
+          icon: <BarChartOutlined />,
+          label: '统计分析',
+        },
+      ],
     },
   ];
+
+  // 获取所有菜单项的扁平化列表（用于标题显示）
+  const getAllMenuItems = () => {
+    const items: { key: string; label: string }[] = [];
+    menuItems.forEach(group => {
+      if (group && 'children' in group && group.children) {
+        group.children.forEach(child => {
+          if (child && 'key' in child && 'label' in child) {
+            items.push({ key: child.key as string, label: child.label as string });
+          }
+        });
+      }
+    });
+    return items;
+  };
+
+  const allMenuItems = getAllMenuItems();
 
   // 用户下拉菜单
   const userMenuItems: MenuProps['items'] = [
@@ -209,8 +253,8 @@ const AppContent: React.FC = () => {
             <div>
               <Title level={3} style={{ margin: 0 }}>
                 {(() => {
-                  const item = menuItems.find(item => item && 'key' in item && item.key === selectedKey);
-                  return item && 'label' in item ? item.label : '知识图谱系统';
+                  const item = allMenuItems.find(item => item.key === selectedKey);
+                  return item ? item.label : '知识图谱系统';
                 })()}
               </Title>
             </div>

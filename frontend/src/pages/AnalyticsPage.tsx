@@ -310,7 +310,7 @@ const AnalyticsPage: React.FC = () => {
           percent={score} 
           size="small" 
           strokeColor="#1890ff"
-          format={() => `${score}分`}
+          format={(percent) => `${percent}分`}
         />
       ),
     },
@@ -324,7 +324,7 @@ const AnalyticsPage: React.FC = () => {
           percent={score} 
           size="small" 
           strokeColor="#52c41a"
-          format={() => `${score}分`}
+          format={(percent) => `${percent}分`}
         />
       ),
     },
@@ -338,7 +338,7 @@ const AnalyticsPage: React.FC = () => {
           percent={score} 
           size="small" 
           strokeColor="#faad14"
-          format={() => `${score}分`}
+          format={(percent) => `${percent}分`}
         />
       ),
     },
@@ -541,7 +541,7 @@ const AnalyticsPage: React.FC = () => {
               title="总潜在价值"
               value={mockCustomerMetrics.reduce((sum, c) => sum + c.potentialValue, 0)}
               prefix={<DollarOutlined />}
-              formatter={(value) => `$${Number(value).toLocaleString()}`}
+              formatter={(value) => `$${Number(value || 0).toLocaleString()}`}
               valueStyle={{ color: '#722ed1' }}
             />
           </Card>
@@ -557,9 +557,7 @@ const AnalyticsPage: React.FC = () => {
               angleField="count"
               colorField="grade"
               radius={0.8}
-              label={{
-                content: '{name} {percentage}',
-              }}
+              label={false}
               interactions={[{ type: 'element-active' }]}
             />
           </Card>

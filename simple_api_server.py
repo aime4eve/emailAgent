@@ -338,6 +338,283 @@ def create_app():
                 'message': str(e)
             }), 500
     
+    @app.route('/api/extract/file', methods=['POST', 'OPTIONS'])
+    def extract_knowledge_from_file():
+        """文件知识抽取接口"""
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+        
+        try:
+            # 检查是否有文件上传
+            if 'file' not in request.files:
+                return jsonify({
+                    'success': False,
+                    'error': '没有上传文件',
+                    'message': '请选择要上传的文件'
+                }), 400
+            
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({
+                    'success': False,
+                    'error': '文件名为空',
+                    'message': '请选择有效的文件'
+                }), 400
+            
+            # 获取文件信息
+            filename = file.filename
+            file_size = len(file.read())
+            file.seek(0)  # 重置文件指针
+            
+            logger.info(f"处理文件上传 - 文件名: {filename}, 大小: {file_size} bytes")
+            
+            # 模拟文件内容解析
+            if filename.lower().endswith(('.txt', '.eml', '.msg')):
+                # 模拟邮件文件解析
+                mock_content = """发件人: john.smith@example.com
+收件人: sales@company.com
+主题: 询盘 - iPhone 15 Pro 批量采购
+
+您好，
+
+我是来自美国ABC公司的采购经理John Smith。我们对贵公司的iPhone 15 Pro产品很感兴趣，希望了解以下信息：
+
+1. 最小起订量是多少？
+2. 批量采购的价格如何？
+3. 交货周期大概多长时间？
+4. 是否支持定制包装？
+
+我们预计采购数量在1000-5000台之间。请提供详细的报价单。
+
+期待您的回复。
+
+最好的问候，
+John Smith
+ABC公司采购经理
+电话: +1-555-0123
+邮箱: john.smith@example.com"""
+                
+                # 模拟知识抽取结果
+                mock_result = {
+                    'file_info': {
+                        'filename': filename,
+                        'size': file_size,
+                        'type': 'email',
+                        'encoding': 'utf-8'
+                    },
+                    'extracted_content': mock_content,
+                    'entities': [
+                        {
+                            'id': 'customer_1',
+                            'text': 'John Smith',
+                            'type': 'Customer',
+                            'confidence': 0.98,
+                            'start_pos': 45,
+                            'end_pos': 55,
+                            'properties': {
+                                'email': 'john.smith@example.com',
+                                'phone': '+1-555-0123',
+                                'position': '采购经理'
+                            }
+                        },
+                        {
+                            'id': 'company_1',
+                            'text': 'ABC公司',
+                            'type': 'Company',
+                            'confidence': 0.95,
+                            'start_pos': 30,
+                            'end_pos': 35,
+                            'properties': {
+                                'country': '美国',
+                                'industry': '贸易'
+                            }
+                        },
+                        {
+                            'id': 'product_1',
+                            'text': 'iPhone 15 Pro',
+                            'type': 'Product',
+                            'confidence': 0.99,
+                            'start_pos': 80,
+                            'end_pos': 94,
+                            'properties': {
+                                'category': '智能手机',
+                                'brand': 'Apple'
+                            }
+                        },
+                        {
+                            'id': 'demand_1',
+                            'text': '批量采购',
+                            'type': 'Demand',
+                            'confidence': 0.92,
+                            'start_pos': 95,
+                            'end_pos': 99,
+                            'properties': {
+                                'quantity_range': '1000-5000台',
+                                'type': 'bulk_purchase'
+                            }
+                        }
+                    ],
+                    'relations': [
+                        {
+                            'id': 'relation_1',
+                            'source': {'id': 'customer_1', 'text': 'John Smith'},
+                            'target': {'id': 'company_1', 'text': 'ABC公司'},
+                            'type': 'belongs_to',
+                            'confidence': 0.95,
+                            'label': '隶属于'
+                        },
+                        {
+                            'id': 'relation_2',
+                            'source': {'id': 'customer_1', 'text': 'John Smith'},
+                            'target': {'id': 'product_1', 'text': 'iPhone 15 Pro'},
+                            'type': 'inquires_about',
+                            'confidence': 0.98,
+                            'label': '询问'
+                        },
+                        {
+                            'id': 'relation_3',
+                            'source': {'id': 'customer_1', 'text': 'John Smith'},
+                            'target': {'id': 'demand_1', 'text': '批量采购'},
+                            'type': 'expresses',
+                            'confidence': 0.90,
+                            'label': '表达'
+                        }
+                    ],
+                    'statistics': {
+                        'total_entities': 4,
+                        'total_relations': 3,
+                        'processing_time': 0.35,
+                        'confidence_avg': 0.95
+                    },
+                    'insights': {
+                        'customer_value_score': 85,
+                        'inquiry_urgency': 'medium',
+                        'business_potential': 'high',
+                        'key_requirements': ['价格', '起订量', '交货周期', '定制包装']
+                    }
+                }
+                
+                return jsonify({
+                    'success': True,
+                    'data': mock_result,
+                    'message': '文件解析和知识抽取完成'
+                }), 200
+            
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': '不支持的文件格式',
+                    'message': '目前只支持 .txt, .eml, .msg 格式的文件'
+                }), 400
+                
+        except Exception as e:
+            logger.error(f"文件知识抽取失败: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': '文件处理失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/graph/<graph_id>/export', methods=['GET', 'OPTIONS'])
+    def export_graph(graph_id):
+        """导出图谱数据"""
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+        
+        try:
+            format_type = request.args.get('format', 'json')
+            logger.info(f"导出图谱 - ID: {graph_id}, 格式: {format_type}")
+            
+            # 模拟图谱数据
+            mock_graph_data = {
+                'nodes': [
+                    {
+                        'id': 'customer_1',
+                        'label': '张三',
+                        'type': 'Customer',
+                        'properties': {
+                            'email': 'zhangsan@example.com',
+                            'country': '中国',
+                            'value_score': 85
+                        }
+                    },
+                    {
+                        'id': 'company_1',
+                        'label': '阿里巴巴',
+                        'type': 'Company',
+                        'properties': {
+                            'industry': '电子商务',
+                            'size': '大型企业'
+                        }
+                    },
+                    {
+                        'id': 'product_1',
+                        'label': 'iPhone 15',
+                        'type': 'Product',
+                        'properties': {
+                            'category': '智能手机',
+                            'price': 999
+                        }
+                    }
+                ],
+                'edges': [
+                    {
+                        'id': 'edge_1',
+                        'source': 'customer_1',
+                        'target': 'company_1',
+                        'type': 'belongs_to',
+                        'label': '隶属于'
+                    },
+                    {
+                        'id': 'edge_2',
+                        'source': 'customer_1',
+                        'target': 'product_1',
+                        'type': 'inquires_about',
+                        'label': '询问'
+                    }
+                ],
+                'metadata': {
+                    'graph_id': graph_id,
+                    'export_time': datetime.now().isoformat(),
+                    'format': format_type,
+                    'node_count': 3,
+                    'edge_count': 2
+                }
+            }
+            
+            if format_type == 'json':
+                from flask import make_response
+                import json
+                
+                response_data = json.dumps(mock_graph_data, ensure_ascii=False, indent=2)
+                response = make_response(response_data)
+                response.headers['Content-Type'] = 'application/json; charset=utf-8'
+                response.headers['Content-Disposition'] = f'attachment; filename=graph_{graph_id}.json'
+                return response
+            
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'不支持的导出格式: {format_type}'
+                }), 400
+                
+        except Exception as e:
+            logger.error(f"导出图谱失败: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': '导出图谱失败',
+                'message': str(e)
+            }), 500
+    
+    @app.route('/api/graph/json/export', methods=['GET', 'OPTIONS'])
+    def export_graph_legacy():
+        """兼容旧版本的图谱导出接口"""
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
+        
+        # 重定向到新的导出接口
+        return export_graph('default')
+    
     return app
 
 if __name__ == '__main__':
@@ -348,6 +625,7 @@ if __name__ == '__main__':
     print("🔗 健康检查: http://localhost:5000/api/health")
     print("📚 本体管理: http://localhost:5000/api/ontologies")
     print("🔍 知识抽取: http://localhost:5000/api/extract")
+    print("📊 图谱导出: http://localhost:5000/api/graph/json/export")
     print("="*50 + "\n")
     
     app.run(

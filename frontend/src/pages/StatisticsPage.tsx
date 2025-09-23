@@ -406,11 +406,8 @@ const StatisticsPage: React.FC = () => {
               legend={{
                 position: 'right',
               }}
-              interactions={[
-                {
-                  type: 'element-active',
-                },
-              ]}
+              label={false}
+              interactions={[{ type: 'element-active' }]}
             />
           </Card>
         </Col>

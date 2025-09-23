@@ -298,7 +298,7 @@ const GraphPage: React.FC = () => {
     }
 
     try {
-      const response = await graphService.exportGraph('json');
+      const response = await graphService.exportGraph('default', 'json');
       if (response.success && response.data) {
         const url = URL.createObjectURL(response.data);
         const link = document.createElement('a');
