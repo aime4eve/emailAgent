@@ -13,6 +13,10 @@ import {
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
+  TeamOutlined,
+  FundOutlined,
+  BulbOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -20,6 +24,10 @@ import type { MenuProps } from 'antd';
 const ExtractionPage = React.lazy(() => import('./pages/ExtractionPage'));
 const GraphPage = React.lazy(() => import('./pages/GraphPage'));
 const OntologyPage = React.lazy(() => import('./pages/OntologyPage'));
+const CustomersPage = React.lazy(() => import('./pages/CustomersPage'));
+const AnalyticsPage = React.lazy(() => import('./pages/AnalyticsPage'));
+const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
+const RecommendationsPage = React.lazy(() => import('./pages/RecommendationsPage'));
 const StatisticsPage = React.lazy(() => import('./pages/StatisticsPage'));
 
 const { Header, Sider, Content } = Layout;
@@ -39,6 +47,10 @@ const AppContent: React.FC = () => {
     if (path.includes('/extraction')) return 'extraction';
     if (path.includes('/graph')) return 'graph';
     if (path.includes('/ontology')) return 'ontology';
+    if (path.includes('/customers')) return 'customers';
+    if (path.includes('/analytics')) return 'analytics';
+    if (path.includes('/insights')) return 'insights';
+    if (path.includes('/recommendations')) return 'recommendations';
     if (path.includes('/statistics')) return 'statistics';
     return 'extraction';
   };
@@ -61,6 +73,26 @@ const AppContent: React.FC = () => {
       key: 'ontology',
       icon: <DatabaseOutlined />,
       label: '本体管理',
+    },
+    {
+      key: 'customers',
+      icon: <TeamOutlined />,
+      label: '客户管理',
+    },
+    {
+      key: 'analytics',
+      icon: <FundOutlined />,
+      label: '客户分析',
+    },
+    {
+      key: 'insights',
+      icon: <BulbOutlined />,
+      label: '需求洞察',
+    },
+    {
+      key: 'recommendations',
+      icon: <RobotOutlined />,
+      label: '智能推荐',
     },
     {
       key: 'statistics',
@@ -221,6 +253,10 @@ const AppContent: React.FC = () => {
                 <Route path="/extraction" element={<ExtractionPage />} />
                 <Route path="/graph" element={<GraphPage />} />
                 <Route path="/ontology" element={<OntologyPage />} />
+                <Route path="/customers" element={<CustomersPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/insights" element={<InsightsPage />} />
+                <Route path="/recommendations" element={<RecommendationsPage />} />
                 <Route path="/statistics" element={<StatisticsPage />} />
                 <Route path="*" element={<Navigate to="/extraction" replace />} />
               </Routes>

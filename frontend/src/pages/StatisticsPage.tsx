@@ -408,9 +408,6 @@ const StatisticsPage: React.FC = () => {
               }}
               interactions={[
                 {
-                  type: 'pie-legend-active',
-                },
-                {
                   type: 'element-active',
                 },
               ]}

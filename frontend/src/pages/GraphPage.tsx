@@ -84,9 +84,9 @@ const GraphPage: React.FC = () => {
           { id: 'e3', source: '1', target: '4', label: '负责', type: 'RESPONSIBLE_FOR', weight: 1 },
         ],
         metadata: {
-          nodeCount: 4,
-          edgeCount: 3,
-          lastUpdated: new Date().toISOString(),
+          node_count: 4,
+          edge_count: 3,
+          updated_at: new Date().toISOString(),
         },
       };
       
@@ -165,10 +165,10 @@ const GraphPage: React.FC = () => {
         container.attr('transform', event.transform);
       });
 
-    svg.call(zoom);
-
     // 创建容器组
     const container = svg.append('g');
+    
+    svg.call(zoom);
 
     // 创建箭头标记
     const defs = svg.append('defs');
