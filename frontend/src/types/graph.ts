@@ -36,6 +36,7 @@ export interface KnowledgeGraphData {
     edge_count: number;
     created_at?: string;
     updated_at?: string;
+    source?: string;
   };
 }
 

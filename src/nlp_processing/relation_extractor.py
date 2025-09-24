@@ -81,6 +81,54 @@ class RelationExtractor:
                         'object_types': ['ORG']
                     }
                 ],
+                'COME_FROM': [
+                    {
+                        'pattern': r'(.+?)(?:来自|出自)(.+?)(?:的|。|，)',
+                        'subject_group': 1,
+                        'object_group': 2,
+                        'subject_types': ['PERSON'],
+                        'object_types': ['LOC', 'ORG']
+                    },
+                    {
+                        'pattern': r'我是(.+?)，来自(.+?)(?:的|。|，)',
+                        'subject_group': 1,
+                        'object_group': 2,
+                        'subject_types': ['PERSON'],
+                        'object_types': ['LOC', 'ORG']
+                    }
+                ],
+                'PRODUCE': [
+                    {
+                        'pattern': r'(.+?)(?:生产|制造|专门生产)(.+?)(?:，|。|包括)',
+                        'subject_group': 1,
+                        'object_group': 2,
+                        'subject_types': ['ORG'],
+                        'object_types': ['PRODUCT']
+                    },
+                    {
+                        'pattern': r'我们(?:公司)?(?:专门)?(?:生产|制造)(.+?)(?:，|。|包括)',
+                        'subject_group': 0,  # 使用整个匹配作为主语
+                        'object_group': 1,
+                        'subject_types': ['ORG'],
+                        'object_types': ['PRODUCT']
+                    }
+                ],
+                'CONTACT': [
+                    {
+                        'pattern': r'(?:请)?(?:联系)(.+?)(?:，|。|电话)',
+                        'subject_group': 0,
+                        'object_group': 1,
+                        'subject_types': ['PERSON', 'ORG'],
+                        'object_types': ['PERSON', 'CONTACT']
+                    },
+                    {
+                        'pattern': r'(.+?)(?:的)?(?:电话|联系方式)(?:是|为)(.+)',
+                        'subject_group': 1,
+                        'object_group': 2,
+                        'subject_types': ['PERSON'],
+                        'object_types': ['PHONE']
+                    }
+                ],
                 'LOCATED_IN': [
                     {
                         'pattern': r'(.+?)(?:位于|坐落于|在)(.+?)(?:市|省|区|县|街道|路)',
@@ -295,12 +343,28 @@ class RelationExtractor:
                 matches = re.finditer(pattern, text, re.IGNORECASE)
                 for match in matches:
                     try:
-                        subject_text = match.group(subject_group).strip()
+                        # 处理subject_group为0的特殊情况
+                        if subject_group == 0:
+                            subject_text = "我们公司"  # 默认主语
+                        else:
+                            subject_text = match.group(subject_group).strip()
+                        
                         object_text = match.group(object_group).strip()
                         
                         # 查找对应的实体
                         subject_entity = self._find_entity_by_text(subject_text, entities, subject_types)
                         object_entity = self._find_entity_by_text(object_text, entities, object_types)
+                        
+                        # 如果找不到主语实体但subject_group为0，创建一个虚拟实体
+                        if not subject_entity and subject_group == 0:
+                            from .entity_extractor import Entity
+                            subject_entity = Entity(
+                                text="我们公司",
+                                label="ORG",
+                                start=0,
+                                end=4,
+                                confidence=0.7
+                            )
                         
                         if subject_entity and object_entity:
                             relation = Relation(
@@ -371,15 +435,35 @@ class RelationExtractor:
         Returns:
             匹配的实体或None
         """
-        # 精确匹配
+        # 清理文本
+        text = text.strip()
+        if not text:
+            return None
+        
+        # 精确匹配（优先级最高）
         for entity in entities:
-            if entity.text == text:
+            if entity.text.strip() == text:
                 if not allowed_types or entity.label in allowed_types:
                     return entity
         
-        # 包含匹配
+        # 包含匹配（实体文本包含查找文本）
         for entity in entities:
-            if text in entity.text or entity.text in text:
+            if text in entity.text.strip():
+                if not allowed_types or entity.label in allowed_types:
+                    return entity
+        
+        # 反向包含匹配（查找文本包含实体文本）
+        for entity in entities:
+            if entity.text.strip() in text:
+                if not allowed_types or entity.label in allowed_types:
+                    return entity
+        
+        # 模糊匹配（去除标点符号后匹配）
+        import re
+        clean_text = re.sub(r'[^\w\s]', '', text)
+        for entity in entities:
+            clean_entity_text = re.sub(r'[^\w\s]', '', entity.text)
+            if clean_text == clean_entity_text:
                 if not allowed_types or entity.label in allowed_types:
                     return entity
         
@@ -398,35 +482,94 @@ class RelationExtractor:
             推断的关系类型或None
         """
         type1, type2 = entity1.label, entity2.label
+        context_lower = context.lower()
         
-        # 基于实体类型的关系推断规则
+        # 基于实体类型的关系推断规则（优化版）
         if type1 == 'PERSON' and type2 == 'ORG':
-            if any(keyword in context for keyword in ['工作', '任职', '就职', 'work', 'employee']):
+            # 工作关系
+            work_keywords = ['工作', '任职', '就职', '上班', '供职', '服务', 'work', 'employee', '员工', '职员']
+            if any(keyword in context_lower for keyword in work_keywords):
                 return 'WORK_AT'
-            elif any(keyword in context for keyword in ['创立', '创建', 'founded', 'established']):
+            # 创立关系
+            found_keywords = ['创立', '创建', '成立', '建立', 'founded', 'established', '创办']
+            if any(keyword in context_lower for keyword in found_keywords):
                 return 'FOUNDED'
-            elif any(keyword in context for keyword in ['毕业', 'graduated']):
+            # 毕业关系
+            grad_keywords = ['毕业', '就读', 'graduated', '学习']
+            if any(keyword in context_lower for keyword in grad_keywords):
                 return 'GRADUATED_FROM'
+            # 来源关系
+            from_keywords = ['来自', '出自', 'from']
+            if any(keyword in context_lower for keyword in from_keywords):
+                return 'COME_FROM'
         
         elif type1 == 'PERSON' and type2 == 'PERSON':
-            if any(keyword in context for keyword in ['结婚', '夫妻', 'married']):
+            # 婚姻关系
+            marriage_keywords = ['结婚', '夫妻', '配偶', 'married', '妻子', '丈夫']
+            if any(keyword in context_lower for keyword in marriage_keywords):
                 return 'MARRIED_TO'
-            elif any(keyword in context for keyword in ['父亲', '母亲', '儿子', '女儿', 'father', 'mother', 'son', 'daughter']):
+            # 亲属关系
+            family_keywords = ['父亲', '母亲', '儿子', '女儿', '爸爸', '妈妈', 'father', 'mother', 'son', 'daughter', '孩子', '父母']
+            if any(keyword in context_lower for keyword in family_keywords):
                 return 'PARENT_OF'
-            elif any(keyword in context for keyword in ['合作', '协作', 'collaborate']):
+            # 合作关系
+            collab_keywords = ['合作', '协作', '配合', 'collaborate', '共同', '一起']
+            if any(keyword in context_lower for keyword in collab_keywords):
+                return 'COLLABORATE_WITH'
+            # 联系关系
+            contact_keywords = ['联系', '请联系', '找', 'contact']
+            if any(keyword in context_lower for keyword in contact_keywords):
+                return 'CONTACT'
+            # 同事关系
+            colleague_keywords = ['同事', '同僚', 'colleague']
+            if any(keyword in context_lower for keyword in colleague_keywords):
                 return 'COLLABORATE_WITH'
         
         elif type1 == 'ORG' and type2 == 'LOC':
-            if any(keyword in context for keyword in ['位于', '坐落', 'located']):
+            location_keywords = ['位于', '坐落', '在', 'located', '地址', '总部']
+            if any(keyword in context_lower for keyword in location_keywords):
                 return 'LOCATED_IN'
         
         elif type1 == 'PERSON' and type2 == 'LOC':
-            if any(keyword in context for keyword in ['出生', '生于', 'born']):
+            # 出生地关系
+            birth_keywords = ['出生', '生于', 'born', '出生地']
+            if any(keyword in context_lower for keyword in birth_keywords):
                 return 'BORN_IN'
-            elif any(keyword in context for keyword in ['居住', '住在', 'live']):
+            # 居住关系
+            live_keywords = ['居住', '住在', '住址', 'live', '家在']
+            if any(keyword in context_lower for keyword in live_keywords):
                 return 'LIVE_IN'
+            # 来源关系
+            from_keywords = ['来自', '出自', 'from']
+            if any(keyword in context_lower for keyword in from_keywords):
+                return 'COME_FROM'
         
-        # 默认关系
+        elif type1 == 'ORG' and type2 == 'PRODUCT':
+            produce_keywords = ['生产', '制造', '专门生产', '开发', '研发', 'produce', 'manufacture']
+            if any(keyword in context_lower for keyword in produce_keywords):
+                return 'PRODUCE'
+        
+        elif type1 == 'PERSON' and type2 == 'PHONE':
+            contact_keywords = ['电话', '联系方式', '手机', '号码', 'phone', 'contact']
+            if any(keyword in context_lower for keyword in contact_keywords):
+                return 'CONTACT'
+        
+        elif type1 == 'PERSON' and type2 == 'EMAIL':
+            email_keywords = ['邮箱', '邮件', '电子邮件', 'email', 'mail']
+            if any(keyword in context_lower for keyword in email_keywords):
+                return 'CONTACT'
+        
+        elif type1 == 'PERSON' and type2 == 'PRODUCT':
+            # 询问关系
+            inquiry_keywords = ['询问', '咨询', '了解', '感兴趣', 'inquire', 'interested']
+            if any(keyword in context_lower for keyword in inquiry_keywords):
+                return 'INQUIRES_ABOUT'
+            # 开发关系
+            develop_keywords = ['开发', '研发', '设计', 'develop', 'design']
+            if any(keyword in context_lower for keyword in develop_keywords):
+                return 'DEVELOPS'
+        
+        # 如果没有明确的关系类型，返回通用关系
         return 'RELATED_TO'
     
     def _deduplicate_relations(self, relations: List[Relation]) -> List[Relation]:

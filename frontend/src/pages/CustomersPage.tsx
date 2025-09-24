@@ -272,11 +272,7 @@ const CustomersPage: React.FC = () => {
     setDetailVisible(true);
   };
 
-  // 查看询盘记录
-  const handleViewInquiries = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setInquiryDrawerVisible(true);
-  };
+
 
   /**
    * 发送邮件功能

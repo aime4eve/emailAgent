@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试知识抽取功能</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; height: 150px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; }
+        .entity { display: inline-block; margin: 2px; padding: 4px 8px; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 4px; }
+        .relation { display: inline-block; margin: 2px; padding: 4px 8px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 4px; }
+        .stats { background: #fff7e6; padding: 10px; margin: 10px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>知识抽取功能测试</h1>
+        
+        <div>
+            <label>输入文本:</label>
+            <textarea id="textInput" placeholder="请输入要抽取的文本...">我是张三，来自北京的ABC公司。我们公司专门生产电子产品，包括手机、平板电脑和笔记本电脑。我们希望与贵公司建立长期的合作关系。请联系我们的销售经理李四，电话是13800138000。</textarea>
+        </div>
+        
+        <div>
+            <button onclick="testExtraction()">开始抽取</button>
+            <button onclick="clearResult()">清空结果</button>
+        </div>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        async function testExtraction() {
+            const textInput = document.getElementById('textInput');
+            const resultDiv = document.getElementById('result');
+            
+            const text = textInput.value.trim();
+            if (!text) {
+                alert('请输入要抽取的文本');
+                return;
+            }
+            
+            console.log('=== 开始测试知识抽取 ===');
+            console.log('输入文本:', text);
+            
+            try {
+                resultDiv.innerHTML = '<p>正在抽取中...</p>';
+                resultDiv.style.display = 'block';
+                
+                const response = await axios.post('http://localhost:5000/api/extract', {
+                    text: text
+                });
+                
+                console.log('API响应:', response.data);
+                
+                if (response.data.success && response.data.data) {
+                    const data = response.data.data;
+                    console.log('抽取结果:', data);
+                    
+                    let html = '<h3>抽取结果</h3>';
+                    
+                    // 统计信息
+                    html += `<div class="stats">`;
+                    html += `<strong>统计信息:</strong><br>`;
+                    html += `实体数量: ${data.entities ? data.entities.length : 0}<br>`;
+                    html += `关系数量: ${data.relations ? data.relations.length : 0}<br>`;
+                    html += `置信度: ${data.statistics ? (data.statistics.confidence * 100).toFixed(1) : 0}%<br>`;
+                    html += `处理时间: ${data.statistics ? (data.statistics.processing_time * 1000).toFixed(0) : 0}ms`;
+                    html += `</div>`;
+                    
+                    // 实体列表
+                    if (data.entities && data.entities.length > 0) {
+                        html += '<h4>实体列表:</h4>';
+                        data.entities.forEach(entity => {
+                            html += `<span class="entity">${entity.text} (${entity.type}) - ${(entity.confidence * 100).toFixed(0)}%</span>`;
+                        });
+                    }
+                    
+                    // 关系列表
+                    if (data.relations && data.relations.length > 0) {
+                        html += '<h4>关系列表:</h4>';
+                        data.relations.forEach(relation => {
+                            const sourceText = relation.source ? relation.source.text : '未知';
+                            const targetText = relation.target ? relation.target.text : '未知';
+                            html += `<span class="relation">${sourceText} → ${relation.type} → ${targetText} (${(relation.confidence * 100).toFixed(0)}%)</span>`;
+                        });
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                    
+                    // 显示成功消息
+                    alert(`抽取完成！成功抽取 ${data.entities ? data.entities.length : 0} 个实体和 ${data.relations ? data.relations.length : 0} 个关系`);
+                    
+                } else {
+                    console.error('抽取失败:', response.data.error);
+                    resultDiv.innerHTML = `<p style="color: red;">抽取失败: ${response.data.error || '未知错误'}</p>`;
+                }
+                
+            } catch (error) {
+                console.error('请求异常:', error);
+                resultDiv.innerHTML = `<p style="color: red;">请求失败: ${error.message}</p>`;
+            }
+        }
+        
+        function clearResult() {
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('textInput').value = '';
+        }
+    </script>
+</body>
+</html>

@@ -21,6 +21,8 @@ import {
   Switch,
   Tooltip,
   Empty,
+  Alert,
+  Dropdown,
 } from 'antd';
 import {
   SearchOutlined,
@@ -32,7 +34,8 @@ import {
   ZoomOutOutlined,
 } from '@ant-design/icons';
 import * as d3 from 'd3';
-import { graphService } from '../services';
+import { knowledgeGraphStore } from '../services/knowledgeGraphStore';
+import { getEntityTypeColor } from '../utils/graphDataConverter';
 import type { KnowledgeGraphData, GraphNode, GraphEdge } from '../types';
 
 const { Title, Text } = Typography;
@@ -47,9 +50,14 @@ const GraphPage: React.FC = () => {
   const [graphData, setGraphData] = useState<KnowledgeGraphData | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedNodeType, setSelectedNodeType] = useState<string>('all');
+  const [selectedEdgeType, setSelectedEdgeType] = useState<string>('all');
+  const [minConfidence, setMinConfidence] = useState<number>(0);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
+  const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
+  const [originalGraphData, setOriginalGraphData] = useState<KnowledgeGraphData | null>(null);
   
   // 图谱配置
   const [graphConfig, setGraphConfig] = useState({
@@ -70,28 +78,38 @@ const GraphPage: React.FC = () => {
   const loadGraphData = useCallback(async () => {
     setLoading(true);
     try {
-      // 暂时使用模拟数据，因为后端图谱API尚未实现
-      const mockData: KnowledgeGraphData = {
-        nodes: [
-          { id: '1', label: '张三', type: 'PERSON', properties: { age: 30 } },
-          { id: '2', label: '李四', type: 'PERSON', properties: { age: 25 } },
-          { id: '3', label: '北京公司', type: 'ORGANIZATION', properties: { industry: '科技' } },
-          { id: '4', label: '项目A', type: 'CONCEPT', properties: { status: '进行中' } },
-        ],
-        edges: [
-          { id: 'e1', source: '1', target: '3', label: '工作于', type: 'WORKS_AT', weight: 1 },
-          { id: 'e2', source: '2', target: '3', label: '工作于', type: 'WORKS_AT', weight: 1 },
-          { id: 'e3', source: '1', target: '4', label: '负责', type: 'RESPONSIBLE_FOR', weight: 1 },
-        ],
-        metadata: {
-          node_count: 4,
-          edge_count: 3,
-          updated_at: new Date().toISOString(),
-        },
-      };
+      // 从存储中获取图谱数据
+      const storedGraphData = knowledgeGraphStore.getMergedGraphData();
       
-      setGraphData(mockData);
-      message.success('图谱数据加载成功（模拟数据）');
+      if (storedGraphData && storedGraphData.nodes.length > 0 && storedGraphData.edges.length > 0) {
+         setOriginalGraphData(storedGraphData);
+         setGraphData(storedGraphData);
+         message.success(`图谱数据加载成功：${storedGraphData.nodes.length} 个节点，${storedGraphData.edges.length} 个关系`);
+       } else {
+        // 如果没有存储数据，使用模拟数据
+        const mockData: KnowledgeGraphData = {
+          nodes: [
+            { id: '1', label: '张三', type: 'PERSON', properties: { age: 30 } },
+            { id: '2', label: '李四', type: 'PERSON', properties: { age: 25 } },
+            { id: '3', label: '北京公司', type: 'ORGANIZATION', properties: { industry: '科技' } },
+            { id: '4', label: '项目A', type: 'CONCEPT', properties: { status: '进行中' } },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '3', label: '工作于', type: 'WORKS_AT', weight: 1 },
+            { id: 'e2', source: '2', target: '3', label: '工作于', type: 'WORKS_AT', weight: 1 },
+            { id: 'e3', source: '1', target: '4', label: '负责', type: 'RESPONSIBLE_FOR', weight: 1 },
+          ],
+          metadata: {
+            node_count: 4,
+            edge_count: 3,
+            updated_at: new Date().toISOString(),
+          },
+        };
+        
+        setOriginalGraphData(mockData);
+        setGraphData(mockData);
+        message.info('使用示例数据，请先进行知识抽取以生成真实图谱数据');
+      }
     } catch (error) {
       message.error('加载图谱数据时发生错误');
       console.error('Load graph data error:', error);
@@ -101,53 +119,241 @@ const GraphPage: React.FC = () => {
   }, []);
 
   /**
-   * 搜索图谱
+   * 应用筛选条件
    */
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
-      loadGraphData();
-      return;
+  const applyFilters = useCallback(() => {
+    if (!originalGraphData) return;
+
+    let filteredNodes = [...originalGraphData.nodes];
+    let filteredEdges = [...originalGraphData.edges];
+
+    // 按搜索关键词筛选
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filteredNodes = filteredNodes.filter(node => 
+        node.label.toLowerCase().includes(query) ||
+        node.type.toLowerCase().includes(query) ||
+        Object.values(node.properties || {}).some(value => 
+          String(value).toLowerCase().includes(query)
+        )
+      );
     }
 
-    setLoading(true);
-    try {
-      // 暂时使用本地搜索，因为后端搜索API尚未实现
-      if (graphData) {
-        const filteredNodes = graphData.nodes.filter(node => 
-          node.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          node.type.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        
-        const nodeIds = new Set(filteredNodes.map(node => node.id));
-        const filteredEdges = graphData.edges.filter(edge => 
-          nodeIds.has(edge.source as string) || nodeIds.has(edge.target as string)
-        );
-        
-        const filteredData: KnowledgeGraphData = {
-          ...graphData,
-          nodes: filteredNodes,
-          edges: filteredEdges,
-        };
-        
-        setGraphData(filteredData);
-        message.success(`找到 ${filteredNodes.length} 个相关节点`);
-      } else {
-        message.warning('请先加载图谱数据');
-      }
-    } catch (error) {
-      message.error('搜索时发生错误');
-      console.error('Search graph error:', error);
-    } finally {
-      setLoading(false);
+    // 按节点类型筛选
+    if (selectedNodeType !== 'all') {
+      filteredNodes = filteredNodes.filter(node => node.type === selectedNodeType);
     }
-  }, [searchQuery, loadGraphData, graphData]);
+
+    // 按置信度筛选
+    if (minConfidence > 0) {
+      filteredNodes = filteredNodes.filter(node => (node.weight || 0) >= minConfidence);
+    }
+
+    // 获取筛选后节点的ID集合
+    const nodeIds = new Set(filteredNodes.map(node => node.id));
+
+    // 筛选边：只保留两端节点都存在的边
+    filteredEdges = filteredEdges.filter(edge => 
+      nodeIds.has(edge.source as string) && nodeIds.has(edge.target as string)
+    );
+
+    // 按边类型筛选
+    if (selectedEdgeType !== 'all') {
+      filteredEdges = filteredEdges.filter(edge => edge.type === selectedEdgeType);
+    }
+
+    // 按边的置信度筛选
+    if (minConfidence > 0) {
+      filteredEdges = filteredEdges.filter(edge => (edge.weight || 0) >= minConfidence);
+    }
+
+    const filteredData: KnowledgeGraphData = {
+      ...originalGraphData,
+      nodes: filteredNodes,
+      edges: filteredEdges,
+      metadata: {
+        ...originalGraphData.metadata,
+        node_count: filteredNodes.length,
+        edge_count: filteredEdges.length,
+        updated_at: new Date().toISOString(),
+      },
+    };
+
+    setGraphData(filteredData);
+    
+    if (searchQuery.trim() || selectedNodeType !== 'all' || selectedEdgeType !== 'all' || minConfidence > 0) {
+      message.success(`筛选结果：${filteredNodes.length} 个节点，${filteredEdges.length} 个关系`);
+    }
+  }, [originalGraphData, searchQuery, selectedNodeType, selectedEdgeType, minConfidence]);
+
+  /**
+   * 重置筛选条件
+   */
+  const resetFilters = useCallback(() => {
+    setSearchQuery('');
+    setSelectedNodeType('all');
+    setSelectedEdgeType('all');
+    setMinConfidence(0);
+    if (originalGraphData) {
+      setGraphData(originalGraphData);
+      message.info('已重置所有筛选条件');
+    }
+  }, [originalGraphData]);
+
+  /**
+   * 搜索图谱
+   */
+  const handleSearch = useCallback(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  /**
+   * 处理节点点击事件
+   */
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    setSelectedNode(node);
+    setDrawerVisible(true);
+    
+    // 高亮相关节点和边
+    if (graphData) {
+      const connectedNodeIds = new Set<string>();
+      const connectedEdgeIds = new Set<string>();
+      
+      // 找到与当前节点相连的所有边和节点
+      graphData.edges.forEach(edge => {
+        if (edge.source === node.id || (typeof edge.source === 'object' && edge.source.id === node.id)) {
+          connectedEdgeIds.add(edge.id);
+          const targetId = typeof edge.target === 'string' ? edge.target : edge.target.id;
+          connectedNodeIds.add(targetId);
+        }
+        if (edge.target === node.id || (typeof edge.target === 'object' && edge.target.id === node.id)) {
+          connectedEdgeIds.add(edge.id);
+          const sourceId = typeof edge.source === 'string' ? edge.source : edge.source.id;
+          connectedNodeIds.add(sourceId);
+        }
+      });
+      
+      // 包含当前节点
+      connectedNodeIds.add(node.id);
+      
+      setHighlightedNodes(connectedNodeIds);
+      setHighlightedEdges(connectedEdgeIds);
+      
+      // 更新可视化样式
+      updateHighlightStyles(connectedNodeIds, connectedEdgeIds);
+    }
+  }, [graphData]);
+
+  /**
+   * 处理节点悬停事件
+   */
+  const handleNodeHover = useCallback((node: GraphNode, isHover: boolean) => {
+    if (!graphData) return;
+    
+    if (isHover) {
+      // 临时高亮相关节点和边
+      const connectedNodeIds = new Set<string>();
+      const connectedEdgeIds = new Set<string>();
+      
+      graphData.edges.forEach(edge => {
+        if (edge.source === node.id || (typeof edge.source === 'object' && edge.source.id === node.id)) {
+          connectedEdgeIds.add(edge.id);
+          const targetId = typeof edge.target === 'string' ? edge.target : edge.target.id;
+          connectedNodeIds.add(targetId);
+        }
+        if (edge.target === node.id || (typeof edge.target === 'object' && edge.target.id === node.id)) {
+          connectedEdgeIds.add(edge.id);
+          const sourceId = typeof edge.source === 'string' ? edge.source : edge.source.id;
+          connectedNodeIds.add(sourceId);
+        }
+      });
+      
+      connectedNodeIds.add(node.id);
+      updateHoverStyles(connectedNodeIds, connectedEdgeIds, true);
+    } else {
+      // 恢复正常样式
+      updateHoverStyles(new Set(), new Set(), false);
+    }
+  }, [graphData]);
+
+  /**
+   * 更新高亮样式
+   */
+  const updateHighlightStyles = useCallback((nodeIds: Set<string>, edgeIds: Set<string>) => {
+    if (!svgRef.current) return;
+    
+    const svg = d3.select(svgRef.current);
+    
+    // 更新节点样式
+    svg.selectAll('.nodes circle')
+      .style('opacity', (d: any) => nodeIds.has(d.id) ? 1 : 0.3)
+      .style('stroke-width', (d: any) => nodeIds.has(d.id) ? 3 : 2);
+    
+    // 更新边样式
+    svg.selectAll('.links line')
+      .style('opacity', (d: any) => edgeIds.has(d.id) ? 1 : 0.1)
+      .style('stroke-width', (d: any) => edgeIds.has(d.id) ? 3 : 1);
+    
+    // 更新标签样式
+    svg.selectAll('.labels text')
+      .style('opacity', (d: any) => nodeIds.has(d.id) ? 1 : 0.3)
+      .style('font-weight', (d: any) => nodeIds.has(d.id) ? 'bold' : 'normal');
+  }, []);
+
+  /**
+   * 更新悬停样式
+   */
+  const updateHoverStyles = useCallback((nodeIds: Set<string>, edgeIds: Set<string>, isHover: boolean) => {
+    if (!svgRef.current) return;
+    
+    const svg = d3.select(svgRef.current);
+    
+    if (isHover) {
+      // 应用悬停样式
+      svg.selectAll('.nodes circle')
+        .style('opacity', (d: any) => nodeIds.has(d.id) ? 1 : 0.2);
+      
+      svg.selectAll('.links line')
+        .style('opacity', (d: any) => edgeIds.has(d.id) ? 0.8 : 0.1)
+        .style('stroke-width', (d: any) => edgeIds.has(d.id) ? 2 : 1);
+      
+      svg.selectAll('.labels text')
+        .style('opacity', (d: any) => nodeIds.has(d.id) ? 1 : 0.2);
+    } else {
+      // 恢复正常样式（但保持已选中的高亮）
+      if (highlightedNodes.size > 0) {
+        updateHighlightStyles(highlightedNodes, highlightedEdges);
+      } else {
+        svg.selectAll('.nodes circle').style('opacity', 1);
+        svg.selectAll('.links line').style('opacity', 0.6).style('stroke-width', 1);
+        svg.selectAll('.labels text').style('opacity', 1).style('font-weight', 'normal');
+      }
+    }
+  }, [highlightedNodes, highlightedEdges, updateHighlightStyles]);
+
+  /**
+   * 清除高亮
+   */
+  const clearHighlight = useCallback(() => {
+    setHighlightedNodes(new Set());
+    setHighlightedEdges(new Set());
+    
+    if (svgRef.current) {
+      const svg = d3.select(svgRef.current);
+      svg.selectAll('.nodes circle').style('opacity', 1).style('stroke-width', 2);
+      svg.selectAll('.links line').style('opacity', 0.6).style('stroke-width', 1);
+      svg.selectAll('.labels text').style('opacity', 1).style('font-weight', 'normal');
+    }
+  }, []);
+
+
 
   /**
    * 初始化D3图谱
    */
   const initializeGraph = useCallback(() => {
     if (!graphData || !svgRef.current) return;
-
+    
     const svg = d3.select(svgRef.current);
     const width = 800;
     const height = 600;
@@ -208,15 +414,8 @@ const GraphPage: React.FC = () => {
       .attr('stroke-width', (d) => Math.sqrt(d.weight || 1))
       .attr('marker-end', graphConfig.showArrows ? 'url(#arrowhead)' : null);
 
-    // 节点颜色映射
-    const nodeColors: Record<string, string> = {
-      PERSON: '#1890ff',
-      ORGANIZATION: '#52c41a',
-      LOCATION: '#fa8c16',
-      TIME: '#722ed1',
-      EVENT: '#f5222d',
-      CONCEPT: '#13c2c2',
-    };
+    // 使用统一的颜色映射函数
+    const getNodeColor = (nodeType: string) => getEntityTypeColor(nodeType);
 
     // 创建节点
     const node = container.append('g')
@@ -225,7 +424,7 @@ const GraphPage: React.FC = () => {
       .data(graphData.nodes)
       .enter().append('circle')
       .attr('r', graphConfig.nodeSize)
-      .attr('fill', (d) => nodeColors[d.type] || '#666')
+      .attr('fill', (d) => getNodeColor(d.type))
       .attr('stroke', '#fff')
       .attr('stroke-width', 2)
       .style('cursor', 'pointer')
@@ -246,13 +445,14 @@ const GraphPage: React.FC = () => {
         })
       )
       .on('click', (_, d) => {
-        setSelectedNode(d);
-        setDrawerVisible(true);
+        handleNodeClick(d);
       })
-      .on('mouseover', function() {
+      .on('mouseover', function(_, d) {
+        handleNodeHover(d, true);
         d3.select(this).attr('r', graphConfig.nodeSize * 1.5);
       })
-      .on('mouseout', function() {
+      .on('mouseout', function(_, d) {
+        handleNodeHover(d, false);
         d3.select(this).attr('r', graphConfig.nodeSize);
       });
 
@@ -289,34 +489,145 @@ const GraphPage: React.FC = () => {
   }, [graphData, graphConfig]);
 
   /**
-   * 导出图谱
+   * 导出图谱为JSON格式
    */
-  const handleExportGraph = useCallback(async () => {
+  const exportAsJSON = useCallback(() => {
     if (!graphData) {
       message.warning('没有可导出的图谱数据');
       return;
     }
 
     try {
-      const response = await graphService.exportGraph('default', 'json');
-      if (response.success && response.data) {
-        const url = URL.createObjectURL(response.data);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `knowledge_graph_${new Date().getTime()}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        message.success('图谱已导出');
-      } else {
-        message.error(response.error || '导出失败');
-      }
+      const exportData = {
+        ...graphData,
+        exportedAt: new Date().toISOString(),
+        version: '1.0',
+      };
+      
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `knowledge_graph_${new Date().getTime()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      message.success('图谱已导出为JSON格式');
     } catch (error) {
-      message.error('导出时发生错误');
-      console.error('Export graph error:', error);
+      message.error('导出JSON时发生错误');
+      console.error('Export JSON error:', error);
     }
   }, [graphData]);
+
+  /**
+   * 导出图谱为CSV格式
+   */
+  const exportAsCSV = useCallback(() => {
+    if (!graphData) {
+      message.warning('没有可导出的图谱数据');
+      return;
+    }
+
+    try {
+      // 导出节点CSV
+      const nodeHeaders = ['id', 'label', 'type', 'weight', 'properties'];
+      const nodeRows = graphData.nodes.map(node => [
+        node.id,
+        node.label,
+        node.type,
+        node.weight || 0,
+        JSON.stringify(node.properties || {})
+      ]);
+      
+      const nodeCSV = [nodeHeaders, ...nodeRows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      
+      // 导出边CSV
+      const edgeHeaders = ['id', 'source', 'target', 'label', 'type', 'weight', 'properties'];
+      const edgeRows = graphData.edges.map(edge => [
+        edge.id,
+        typeof edge.source === 'string' ? edge.source : edge.source.id,
+        typeof edge.target === 'string' ? edge.target : edge.target.id,
+        edge.label || '',
+        edge.type,
+        edge.weight || 0,
+        JSON.stringify(edge.properties || {})
+      ]);
+      
+      const edgeCSV = [edgeHeaders, ...edgeRows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      
+      // 下载节点CSV
+      const nodeBlob = new Blob([nodeCSV], { type: 'text/csv;charset=utf-8;' });
+      const nodeUrl = URL.createObjectURL(nodeBlob);
+      const nodeLink = document.createElement('a');
+      nodeLink.href = nodeUrl;
+      nodeLink.download = `knowledge_graph_nodes_${new Date().getTime()}.csv`;
+      document.body.appendChild(nodeLink);
+      nodeLink.click();
+      document.body.removeChild(nodeLink);
+      URL.revokeObjectURL(nodeUrl);
+      
+      // 下载边CSV
+      const edgeBlob = new Blob([edgeCSV], { type: 'text/csv;charset=utf-8;' });
+      const edgeUrl = URL.createObjectURL(edgeBlob);
+      const edgeLink = document.createElement('a');
+      edgeLink.href = edgeUrl;
+      edgeLink.download = `knowledge_graph_edges_${new Date().getTime()}.csv`;
+      document.body.appendChild(edgeLink);
+      edgeLink.click();
+      document.body.removeChild(edgeLink);
+      URL.revokeObjectURL(edgeUrl);
+      
+      message.success('图谱已导出为CSV格式（节点和边分别保存）');
+    } catch (error) {
+      message.error('导出CSV时发生错误');
+      console.error('Export CSV error:', error);
+    }
+  }, [graphData]);
+
+  /**
+   * 导出图谱为SVG格式
+   */
+  const exportAsSVG = useCallback(() => {
+    if (!svgRef.current) {
+      message.warning('没有可导出的图谱可视化');
+      return;
+    }
+
+    try {
+      const svgElement = svgRef.current;
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svgElement);
+      
+      // 添加XML声明和样式
+      const fullSvgString = `<?xml version="1.0" encoding="UTF-8"?>\n${svgString}`;
+      
+      const svgBlob = new Blob([fullSvgString], { type: 'image/svg+xml;charset=utf-8;' });
+      const url = URL.createObjectURL(svgBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `knowledge_graph_${new Date().getTime()}.svg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      message.success('图谱已导出为SVG格式');
+    } catch (error) {
+      message.error('导出SVG时发生错误');
+      console.error('Export SVG error:', error);
+    }
+  }, []);
+
+
 
   /**
    * 缩放控制
@@ -341,9 +652,11 @@ const GraphPage: React.FC = () => {
     initializeGraph();
   }, [initializeGraph]);
 
-  // 获取节点类型列表
-  const nodeTypes = graphData ? 
-    Array.from(new Set(graphData.nodes.map(node => node.type))) : [];
+  // 获取节点类型和边类型列表
+  const nodeTypes = originalGraphData ? 
+    Array.from(new Set(originalGraphData.nodes.map(node => node.type))) : [];
+  const edgeTypes = originalGraphData ? 
+    Array.from(new Set(originalGraphData.edges.map(edge => edge.type))) : [];
 
   return (
     <div>
@@ -363,27 +676,62 @@ const GraphPage: React.FC = () => {
                   刷新
                 </Button>
                 <Button
+                  danger
+                  onClick={() => {
+                    knowledgeGraphStore.clearAll();
+                    loadGraphData();
+                    message.success('存储数据已清空，现在使用示例数据');
+                  }}
+                >
+                  清空存储
+                </Button>
+                <Button
                   icon={<SettingOutlined />}
                   onClick={() => setSettingsVisible(true)}
                 >
                   设置
                 </Button>
-                <Button
-                  type="primary"
-                  icon={<DownloadOutlined />}
-                  onClick={handleExportGraph}
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'json',
+                        label: 'JSON格式',
+                        icon: <DownloadOutlined />,
+                        onClick: exportAsJSON,
+                      },
+                      {
+                        key: 'csv',
+                        label: 'CSV格式',
+                        icon: <DownloadOutlined />,
+                        onClick: exportAsCSV,
+                      },
+                      {
+                        key: 'svg',
+                        label: 'SVG格式',
+                        icon: <DownloadOutlined />,
+                        onClick: exportAsSVG,
+                      },
+                    ],
+                  }}
                   disabled={!graphData}
                 >
-                  导出
-                </Button>
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    disabled={!graphData}
+                  >
+                    导出
+                  </Button>
+                </Dropdown>
               </Space>
             </div>
             
             {/* 搜索和筛选 */}
             <Row gutter={16} className="mb-16">
-              <Col span={12}>
+              <Col span={8}>
                 <Input.Search
-                  placeholder="搜索节点或关系..."
+                  placeholder="搜索节点、关系或属性..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onSearch={handleSearch}
@@ -391,39 +739,107 @@ const GraphPage: React.FC = () => {
                   loading={loading}
                 />
               </Col>
-              <Col span={6}>
+              <Col span={4}>
                 <Select
                   value={selectedNodeType}
-                  onChange={setSelectedNodeType}
+                  onChange={(value) => {
+                    setSelectedNodeType(value);
+                    // 自动应用筛选
+                    setTimeout(applyFilters, 100);
+                  }}
                   style={{ width: '100%' }}
-                  placeholder="选择节点类型"
+                  placeholder="节点类型"
                 >
-                  <Option value="all">所有类型</Option>
+                  <Option value="all">所有节点类型</Option>
                   {nodeTypes.map(type => (
                     <Option key={type} value={type}>{type}</Option>
                   ))}
                 </Select>
               </Col>
-              <Col span={6}>
+              <Col span={4}>
+                <Select
+                  value={selectedEdgeType}
+                  onChange={(value) => {
+                    setSelectedEdgeType(value);
+                    // 自动应用筛选
+                    setTimeout(applyFilters, 100);
+                  }}
+                  style={{ width: '100%' }}
+                  placeholder="关系类型"
+                >
+                  <Option value="all">所有关系类型</Option>
+                  {edgeTypes.map(type => (
+                    <Option key={type} value={type}>{type}</Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col span={4}>
+                <div>
+                  <Text style={{ fontSize: '12px', color: '#666' }}>置信度 ≥ {minConfidence.toFixed(1)}</Text>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={minConfidence}
+                    onChange={(value) => {
+                      setMinConfidence(value);
+                      // 自动应用筛选
+                      setTimeout(applyFilters, 100);
+                    }}
+                    style={{ marginTop: 4 }}
+                  />
+                </div>
+              </Col>
+              <Col span={4}>
                 <Space>
+                  <Button
+                    onClick={resetFilters}
+                    disabled={!originalGraphData}
+                    size="small"
+                  >
+                    重置
+                  </Button>
                   <Tooltip title="放大">
                     <Button
                       icon={<ZoomInOutlined />}
                       onClick={() => handleZoom(1.2)}
+                      size="small"
                     />
                   </Tooltip>
                   <Tooltip title="缩小">
                     <Button
                       icon={<ZoomOutOutlined />}
                       onClick={() => handleZoom(0.8)}
+                      size="small"
                     />
                   </Tooltip>
                   <Tooltip title="全屏">
-                    <Button icon={<FullscreenOutlined />} />
+                    <Button 
+                      icon={<FullscreenOutlined />} 
+                      size="small"
+                    />
                   </Tooltip>
                 </Space>
               </Col>
             </Row>
+            
+            {/* 筛选结果统计 */}
+            {graphData && originalGraphData && (
+              graphData.nodes.length !== originalGraphData.nodes.length || 
+              graphData.edges.length !== originalGraphData.edges.length
+            ) && (
+              <Row className="mb-16">
+                <Col span={24}>
+                  <Alert
+                    message={`筛选结果：显示 ${graphData.nodes.length}/${originalGraphData.nodes.length} 个节点，${graphData.edges.length}/${originalGraphData.edges.length} 个关系`}
+                    type="info"
+                    showIcon
+                    closable={false}
+                    style={{ fontSize: '12px' }}
+                  />
+                </Col>
+              </Row>
+            )}
           </Card>
         </Col>
       </Row>
@@ -452,29 +868,97 @@ const GraphPage: React.FC = () => {
       <Drawer
         title="节点详情"
         placement="right"
-        onClose={() => setDrawerVisible(false)}
+        onClose={() => {
+          setDrawerVisible(false);
+          clearHighlight();
+        }}
         open={drawerVisible}
-        width={400}
+        width={450}
       >
         {selectedNode && (
           <div>
-            <Descriptions column={1} bordered>
+            <div className="mb-16">
+              <Space>
+                <Button 
+                  size="small" 
+                  onClick={clearHighlight}
+                >
+                  清除高亮
+                </Button>
+                <Button 
+                  size="small" 
+                  type="primary"
+                  onClick={() => {
+                    // 重新高亮当前节点的连接
+                    handleNodeClick(selectedNode);
+                  }}
+                >
+                  重新高亮
+                </Button>
+              </Space>
+            </div>
+            
+            <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="ID">{selectedNode.id}</Descriptions.Item>
               <Descriptions.Item label="标签">{selectedNode.label}</Descriptions.Item>
               <Descriptions.Item label="类型">
-                <Tag color="blue">{selectedNode.type}</Tag>
+                <Tag color={getEntityTypeColor(selectedNode.type).replace('#', '')}>
+                  {selectedNode.type}
+                </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="权重">{selectedNode.weight}</Descriptions.Item>
+              <Descriptions.Item label="置信度">
+                {selectedNode.weight ? (selectedNode.weight * 100).toFixed(1) + '%' : 'N/A'}
+              </Descriptions.Item>
               {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 && (
                 <Descriptions.Item label="属性">
-                  {Object.entries(selectedNode.properties).map(([key, value]) => (
-                    <div key={key}>
-                      <Text strong>{key}:</Text> {String(value)}
-                    </div>
-                  ))}
+                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {Object.entries(selectedNode.properties).map(([key, value]) => (
+                      <div key={key} style={{ marginBottom: '4px' }}>
+                        <Text strong>{key}:</Text> <Text code>{String(value)}</Text>
+                      </div>
+                    ))}
+                  </div>
                 </Descriptions.Item>
               )}
             </Descriptions>
+            
+            {/* 连接信息 */}
+            {graphData && (
+              <div style={{ marginTop: '16px' }}>
+                <Title level={5}>连接信息</Title>
+                <div>
+                  <Text>连接的节点数: </Text>
+                  <Tag color="blue">{highlightedNodes.size - 1}</Tag>
+                </div>
+                <div style={{ marginTop: '8px' }}>
+                  <Text>相关关系数: </Text>
+                  <Tag color="green">{highlightedEdges.size}</Tag>
+                </div>
+                
+                {/* 相关关系列表 */}
+                {highlightedEdges.size > 0 && (
+                  <div style={{ marginTop: '12px' }}>
+                    <Text strong>相关关系:</Text>
+                    <div style={{ marginTop: '8px', maxHeight: '150px', overflowY: 'auto' }}>
+                      {graphData.edges
+                        .filter(edge => highlightedEdges.has(edge.id))
+                        .map(edge => {
+                          const sourceLabel = graphData.nodes.find(n => n.id === edge.source)?.label || 'Unknown';
+                          const targetLabel = graphData.nodes.find(n => n.id === edge.target)?.label || 'Unknown';
+                          return (
+                            <div key={edge.id} style={{ marginBottom: '4px', padding: '4px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                              <Text style={{ fontSize: '12px' }}>
+                                {sourceLabel} → {edge.label || edge.type} → {targetLabel}
+                              </Text>
+                            </div>
+                          );
+                        })
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Drawer>

@@ -29,6 +29,7 @@ const AnalyticsPage = React.lazy(() => import('./pages/AnalyticsPage'));
 const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
 const RecommendationsPage = React.lazy(() => import('./pages/RecommendationsPage'));
 const StatisticsPage = React.lazy(() => import('./pages/StatisticsPage'));
+const TestExtractionPage = React.lazy(() => import('./pages/TestExtractionPage'));
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -291,6 +292,7 @@ const AppContent: React.FC = () => {
               <Routes>
                 <Route path="/" element={<Navigate to="/extraction" replace />} />
                 <Route path="/extraction" element={<ExtractionPage />} />
+                <Route path="/test-extraction" element={<TestExtractionPage />} />
                 <Route path="/graph" element={<GraphPage />} />
                 <Route path="/ontology" element={<OntologyPage />} />
                 <Route path="/customers" element={<CustomersPage />} />

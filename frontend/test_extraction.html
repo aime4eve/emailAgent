@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试知识抽取功能</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>知识抽取功能测试</h1>
+    <textarea id="textInput" rows="5" cols="50" placeholder="请输入要抽取的文本...">我是张三，来自北京的ABC公司。我们公司专门生产电子产品。</textarea><br><br>
+    <button onclick="testExtraction()">测试抽取</button>
+    <div id="result"></div>
+
+    <script>
+        async function testExtraction() {
+            const text = document.getElementById('textInput').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!text.trim()) {
+                alert('请输入文本内容');
+                return;
+            }
+            
+            try {
+                console.log('发送请求到:', 'http://localhost:5000/api/extract');
+                console.log('请求数据:', { text });
+                
+                const response = await axios.post('http://localhost:5000/api/extract', {
+                    text: text
+                });
+                
+                console.log('响应数据:', response.data);
+                resultDiv.innerHTML = '<h3>抽取结果:</h3><pre>' + JSON.stringify(response.data, null, 2) + '</pre>';
+            } catch (error) {
+                console.error('请求失败:', error);
+                resultDiv.innerHTML = '<h3>错误:</h3><p>' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

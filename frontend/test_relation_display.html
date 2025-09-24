@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关系抽取显示测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1890ff;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+        }
+        .test-input {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .test-button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .test-button:hover {
+            background: #40a9ff;
+        }
+        .test-button:disabled {
+            background: #d9d9d9;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .entity {
+            display: inline-block;
+            margin: 2px;
+            padding: 4px 8px;
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .relation {
+            display: inline-block;
+            margin: 2px;
+            padding: 4px 8px;
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .relation.fixed {
+            background: #f0f9ff;
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+        .relation.broken {
+            background: #fff2e8;
+            border-color: #ffbb96;
+            color: #fa8c16;
+        }
+        .stats {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        .loading {
+            text-align: center;
+            color: #1890ff;
+            margin: 20px 0;
+        }
+        .error {
+            color: #ff4d4f;
+            background: #fff2f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            color: #52c41a;
+            background: #f6ffed;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 关系抽取显示测试</h1>
+            <p>测试修复后的关系抽取功能，验证实体名称是否正确显示</p>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 输入测试文本</h3>
+            <textarea id="testText" class="test-input" placeholder="请输入要测试的文本...">
+张三来自北京，他在ABC公司工作。李四是张三的同事，他们一起开发了新产品iPhone。请联系张三，电话是13800138000。
+            </textarea>
+            <button id="extractBtn" class="test-button" onclick="testExtraction()">🚀 开始抽取测试</button>
+        </div>
+
+        <div id="results" class="results" style="display: none;">
+            <h3>📊 抽取结果</h3>
+            <div id="stats" class="stats"></div>
+            
+            <h4>👥 实体列表</h4>
+            <div id="entities"></div>
+            
+            <h4>🔗 关系列表</h4>
+            <div id="relations"></div>
+            
+            <div id="analysis"></div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            ⏳ 正在抽取知识，请稍候...
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        async function testExtraction() {
+            const textInput = document.getElementById('testText');
+            const extractBtn = document.getElementById('extractBtn');
+            const loadingDiv = document.getElementById('loading');
+            const resultsDiv = document.getElementById('results');
+            const statsDiv = document.getElementById('stats');
+            const entitiesDiv = document.getElementById('entities');
+            const relationsDiv = document.getElementById('relations');
+            const analysisDiv = document.getElementById('analysis');
+            
+            const text = textInput.value.trim();
+            if (!text) {
+                alert('请输入测试文本');
+                return;
+            }
+            
+            // 显示加载状态
+            extractBtn.disabled = true;
+            loadingDiv.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            
+            try {
+                console.log('发送请求到:', 'http://localhost:5000/api/extract');
+                console.log('请求数据:', { text });
+                
+                const response = await axios.post('http://localhost:5000/api/extract', {
+                    text: text
+                }, {
+                    timeout: 30000,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('API响应:', response.data);
+                
+                if (response.data.success) {
+                    const data = response.data.data;
+                    
+                    // 显示统计信息
+                    statsDiv.innerHTML = `
+                        <strong>📈 统计信息:</strong><br>
+                        实体数量: ${data.entities ? data.entities.length : 0}<br>
+                        关系数量: ${data.relations ? data.relations.length : 0}<br>
+                        处理时间: ${data.statistics?.processing_time?.toFixed(3) || 'N/A'}秒<br>
+                        平均置信度: ${data.statistics?.confidence?.toFixed(2) || 'N/A'}
+                    `;
+                    
+                    // 显示实体
+                    if (data.entities && data.entities.length > 0) {
+                        let entitiesHtml = '';
+                        data.entities.forEach(entity => {
+                            const confidence = entity.confidence ? `${(entity.confidence * 100).toFixed(0)}%` : 'N/A';
+                            entitiesHtml += `<span class="entity" title="置信度: ${confidence}">${entity.text} (${entity.type})</span>`;
+                        });
+                        entitiesDiv.innerHTML = entitiesHtml;
+                    } else {
+                        entitiesDiv.innerHTML = '<span style="color: #999;">未抽取到实体</span>';
+                    }
+                    
+                    // 显示关系
+                    if (data.relations && data.relations.length > 0) {
+                        let relationsHtml = '';
+                        let fixedCount = 0;
+                        let brokenCount = 0;
+                        
+                        data.relations.forEach(relation => {
+                            const sourceText = relation.source_text || relation.source?.text || '未知';
+                            const targetText = relation.target_text || relation.target?.text || '未知';
+                            const relationType = relation.type || '未知关系';
+                            const confidence = relation.confidence ? `${(relation.confidence * 100).toFixed(0)}%` : 'N/A';
+                            
+                            // 检查是否修复成功
+                            const isFixed = sourceText !== '未知' && targetText !== '未知';
+                            const cssClass = isFixed ? 'relation fixed' : 'relation broken';
+                            
+                            if (isFixed) {
+                                fixedCount++;
+                            } else {
+                                brokenCount++;
+                            }
+                            
+                            relationsHtml += `<span class="${cssClass}" title="置信度: ${confidence}">${sourceText} → ${relationType} → ${targetText}</span>`;
+                        });
+                        
+                        relationsDiv.innerHTML = relationsHtml;
+                        
+                        // 显示修复分析
+                        const totalRelations = data.relations.length;
+                        const fixedPercentage = ((fixedCount / totalRelations) * 100).toFixed(1);
+                        
+                        let analysisHtml = `
+                            <div style="margin-top: 20px; padding: 15px; border-radius: 4px;">
+                                <h4>🔍 修复效果分析</h4>
+                                <p><strong>总关系数:</strong> ${totalRelations}</p>
+                                <p><strong>修复成功:</strong> ${fixedCount} 个 (${fixedPercentage}%)</p>
+                                <p><strong>仍有问题:</strong> ${brokenCount} 个</p>
+                        `;
+                        
+                        if (brokenCount === 0) {
+                            analysisHtml += '<div class="success">🎉 所有关系都已修复成功！实体名称显示正常。</div>';
+                        } else {
+                            analysisHtml += `<div class="error">⚠️ 仍有 ${brokenCount} 个关系显示"未知"实体，需要进一步修复。</div>`;
+                        }
+                        
+                        analysisHtml += '</div>';
+                        analysisDiv.innerHTML = analysisHtml;
+                        
+                    } else {
+                        relationsDiv.innerHTML = '<span style="color: #999;">未抽取到关系</span>';
+                        analysisDiv.innerHTML = '<div class="error">❌ 没有抽取到任何关系</div>';
+                    }
+                    
+                    resultsDiv.style.display = 'block';
+                    
+                } else {
+                    throw new Error(response.data.error || '抽取失败');
+                }
+                
+            } catch (error) {
+                console.error('抽取错误:', error);
+                analysisDiv.innerHTML = `<div class="error">❌ 抽取失败: ${error.message}</div>`;
+                resultsDiv.style.display = 'block';
+            } finally {
+                extractBtn.disabled = false;
+                loadingDiv.style.display = 'none';
+            }
+        }
+        
+        // 页面加载完成后自动运行一次测试
+        window.addEventListener('load', function() {
+            setTimeout(testExtraction, 1000);
+        });
+    </script>
+</body>
+</html>

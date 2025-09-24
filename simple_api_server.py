@@ -8,6 +8,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import logging
+import time
 from datetime import datetime
 
 # 配置日志
@@ -286,52 +287,121 @@ def create_app():
                 return jsonify({'error': '请求数据格式错误或缺少文本内容'}), 400
             
             text = data['text']
+            logger.info(f"开始处理文本知识抽取，文本长度: {len(text)}")
             
-            # 模拟抽取结果
-            mock_result = {
-                'entities': [
-                    {
-                        'id': 'entity_1',
-                        'text': '苹果公司',
-                        'type': 'Company',
-                        'confidence': 0.95,
-                        'start_pos': 0,
-                        'end_pos': 3,
-                        'properties': {'industry': 'Technology'}
+            # 导入知识抽取服务
+            import sys
+            import os
+            sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+            
+            from nlp_processing.entity_extractor import EntityExtractor
+            from nlp_processing.relation_extractor import RelationExtractor
+            
+            start_time = time.time()
+            
+            # 初始化抽取器
+            entity_extractor = EntityExtractor(language='chinese')
+            relation_extractor = RelationExtractor(language='chinese')
+            
+            # 抽取实体
+            entities = entity_extractor.extract_entities(text, use_rules=True, use_model=False)
+            logger.info(f"抽取到 {len(entities)} 个实体")
+            
+            # 抽取关系
+            relations = relation_extractor.extract_from_text(text, entities)
+            logger.info(f"抽取到 {len(relations)} 个关系")
+            
+            processing_time = time.time() - start_time
+            
+            # 转换实体格式
+            formatted_entities = []
+            for i, entity in enumerate(entities):
+                formatted_entities.append({
+                    'id': f'entity_{i+1}',
+                    'text': entity.text,
+                    'type': entity.label,
+                    'confidence': entity.confidence,
+                    'start_pos': entity.start,
+                    'end_pos': entity.end,
+                    'properties': entity.properties
+                })
+            
+            # 转换关系格式
+            formatted_relations = []
+            for i, relation in enumerate(relations):
+                # 安全地查找实体索引
+                source_id = 'unknown'
+                target_id = 'unknown'
+                source_text = '未知'
+                target_text = '未知'
+                
+                # 获取source实体信息
+                if hasattr(relation, 'subject') and relation.subject:
+                    if hasattr(relation.subject, 'text'):
+                        source_text = relation.subject.text
+                    try:
+                        source_idx = entities.index(relation.subject)
+                        source_id = f'entity_{source_idx+1}'
+                    except (ValueError, AttributeError):
+                        # 如果找不到实体索引，但有文本，仍然使用文本
+                        pass
+                
+                # 获取target实体信息
+                if hasattr(relation, 'object') and relation.object:
+                    if hasattr(relation.object, 'text'):
+                        target_text = relation.object.text
+                    try:
+                        target_idx = entities.index(relation.object)
+                        target_id = f'entity_{target_idx+1}'
+                    except (ValueError, AttributeError):
+                        # 如果找不到实体索引，但有文本，仍然使用文本
+                        pass
+                
+                formatted_relations.append({
+                    'id': f'relation_{i+1}',
+                    'source': {
+                        'id': source_id,
+                        'text': source_text
                     },
-                    {
-                        'id': 'entity_2',
-                        'text': 'iPhone',
-                        'type': 'Product',
-                        'confidence': 0.92,
-                        'start_pos': 10,
-                        'end_pos': 16,
-                        'properties': {'category': 'Smartphone'}
-                    }
-                ],
-                'relations': [
-                    {
-                        'id': 'relation_1',
-                        'source': {'id': 'entity_1', 'text': '苹果公司'},
-                        'target': {'id': 'entity_2', 'text': 'iPhone'},
-                        'type': 'produces',
-                        'confidence': 0.88
-                    }
-                ],
+                    'target': {
+                        'id': target_id,
+                        'text': target_text
+                    },
+                    'source_text': source_text,  # 添加直接的source_text字段
+                    'target_text': target_text,  # 添加直接的target_text字段
+                    'type': relation.predicate,  # 使用predicate而不是relation_type
+                    'confidence': relation.confidence
+                })
+            
+            # 计算置信度
+            avg_confidence = 0.0
+            if entities or relations:
+                total_confidence = sum(e.confidence for e in entities) + sum(r.confidence for r in relations)
+                total_items = len(entities) + len(relations)
+                avg_confidence = total_confidence / total_items if total_items > 0 else 0.0
+            
+            result = {
+                'entities': formatted_entities,
+                'relations': formatted_relations,
                 'statistics': {
-                    'total_entities': 2,
-                    'total_relations': 1,
-                    'processing_time': 0.15
+                    'total_entities': len(entities),
+                    'total_relations': len(relations),
+                    'processing_time': processing_time,
+                    'confidence': avg_confidence
                 }
             }
             
+            logger.info(f"知识抽取完成，耗时: {processing_time:.2f}秒")
+            
             return jsonify({
                 'success': True,
-                'data': mock_result
+                'data': result
             }), 200
             
         except Exception as e:
             logger.error(f"知识抽取失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return jsonify({
                 'success': False,
                 'error': '知识抽取失败',
@@ -631,6 +701,6 @@ if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
         port=5000,
-        debug=True,
+        debug=False,
         threaded=True
     )

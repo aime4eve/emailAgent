@@ -189,6 +189,13 @@ class ApiClient {
    * 处理成功响应
    */
   private handleResponse<T>(response: AxiosResponse): ApiResponse<T> {
+    // 检查后端是否已经返回了包含success字段的响应
+    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+      // 后端已经返回了标准格式，直接返回
+      return response.data as ApiResponse<T>;
+    }
+    
+    // 否则包装成标准格式
     return {
       success: true,
       data: response.data,

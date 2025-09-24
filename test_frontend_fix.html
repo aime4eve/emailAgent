@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试前端修复</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            background-color: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>测试前端API修复</h1>
+    
+    <div class="test-section">
+        <h2>测试知识抽取API</h2>
+        <p>这个测试将验证前端API客户端是否正确处理后端响应数据。</p>
+        <button onclick="testExtraction()">开始测试</button>
+        <div id="testResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testExtraction() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.textContent = '正在测试...';
+            resultDiv.className = 'result';
+            
+            try {
+                const testData = {
+                    text: "张三是来自北京的ABC公司采购经理，他对iPhone 15 Pro产品很感兴趣，希望了解批量采购的价格和交货周期。请联系销售经理李四获取详细报价单。"
+                };
+                
+                console.log('发送请求:', testData);
+                
+                const response = await axios.post('http://localhost:5000/api/extract', testData, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('原始响应:', response);
+                console.log('响应数据:', response.data);
+                
+                // 模拟前端API客户端的处理逻辑
+                let processedResponse;
+                if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+                    // 后端已经返回了标准格式，直接使用
+                    processedResponse = response.data;
+                } else {
+                    // 否则包装成标准格式
+                    processedResponse = {
+                        success: true,
+                        data: response.data
+                    };
+                }
+                
+                console.log('处理后的响应:', processedResponse);
+                
+                // 验证数据结构
+                if (processedResponse.success && processedResponse.data) {
+                    const entities = processedResponse.data.entities || [];
+                    const relations = processedResponse.data.relations || [];
+                    const statistics = processedResponse.data.statistics || {};
+                    
+                    const result = `✅ 测试成功！
+
+数据结构验证:
+- 响应格式: ${processedResponse.success ? '正确' : '错误'}
+- 实体数量: ${entities.length}
+- 关系数量: ${relations.length}
+- 置信度: ${(statistics.confidence || 0) * 100}%
+- 处理时间: ${statistics.processing_time || 0}秒
+
+实体示例:
+${entities.slice(0, 3).map(e => `- ${e.text} (${e.type})`).join('\n')}
+
+关系示例:
+${relations.slice(0, 3).map(r => `- ${r.source.text} → ${r.type} → ${r.target.text}`).join('\n')}
+
+完整响应数据:
+${JSON.stringify(processedResponse, null, 2)}`;
+                    
+                    resultDiv.textContent = result;
+                    resultDiv.className = 'result success';
+                    
+                    if (entities.length === 0 && relations.length === 0) {
+                        resultDiv.textContent = '❌ 问题仍然存在：实体和关系数量都为0\n\n' + result;
+                        resultDiv.className = 'result error';
+                    }
+                } else {
+                    resultDiv.textContent = `❌ 响应格式错误:\n${JSON.stringify(processedResponse, null, 2)}`;
+                    resultDiv.className = 'result error';
+                }
+                
+            } catch (error) {
+                console.error('测试失败:', error);
+                resultDiv.textContent = `❌ 测试失败:\n${error.message}\n\n详细信息:\n${JSON.stringify(error.response?.data || error, null, 2)}`;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+</html>
