@@ -17,6 +17,8 @@ import {
   FundOutlined,
   BulbOutlined,
   RobotOutlined,
+  LineChartOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -30,6 +32,10 @@ const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
 const RecommendationsPage = React.lazy(() => import('./pages/RecommendationsPage'));
 const StatisticsPage = React.lazy(() => import('./pages/StatisticsPage'));
 const TestExtractionPage = React.lazy(() => import('./pages/TestExtractionPage'));
+// 新增洞察系统页面
+const CustomerInsightsPage = React.lazy(() => import('./pages/CustomerInsightsPage'));
+const ProductAnalysisPage = React.lazy(() => import('./pages/ProductAnalysisPage'));
+const RiskAnalysisPage = React.lazy(() => import('./pages/RiskAnalysisPage'));
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -53,6 +59,9 @@ const AppContent: React.FC = () => {
     if (path.includes('/insights')) return 'insights';
     if (path.includes('/recommendations')) return 'recommendations';
     if (path.includes('/statistics')) return 'statistics';
+    if (path.includes('/customer-insights')) return 'customer-insights';
+    if (path.includes('/product-analysis')) return 'product-analysis';
+    if (path.includes('/risk-analysis')) return 'risk-analysis';
     return 'extraction';
   };
   
@@ -108,6 +117,21 @@ const AppContent: React.FC = () => {
           key: 'insights',
           icon: <BulbOutlined />,
           label: '需求洞察',
+        },
+        {
+          key: 'customer-insights',
+          icon: <UserOutlined />,
+          label: '客户洞察',
+        },
+        {
+           key: 'product-analysis',
+           icon: <LineChartOutlined />,
+           label: '产品分析',
+         },
+        {
+          key: 'risk-analysis',
+          icon: <WarningOutlined />,
+          label: '风险分析',
         },
         {
           key: 'recommendations',
@@ -298,6 +322,9 @@ const AppContent: React.FC = () => {
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/insights" element={<InsightsPage />} />
+                <Route path="/customer-insights" element={<CustomerInsightsPage />} />
+                <Route path="/product-analysis" element={<ProductAnalysisPage />} />
+                <Route path="/risk-analysis" element={<RiskAnalysisPage />} />
                 <Route path="/recommendations" element={<RecommendationsPage />} />
                 <Route path="/statistics" element={<StatisticsPage />} />
                 <Route path="*" element={<Navigate to="/extraction" replace />} />

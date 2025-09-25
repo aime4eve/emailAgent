@@ -19,14 +19,14 @@ export class ExtractionService {
    * 检查服务健康状态
    */
   async checkHealth(): Promise<ApiResponse<HealthCheckResponse>> {
-    return apiClient.get<HealthCheckResponse>('/health');
+    return apiClient.get<HealthCheckResponse>('/v1/health');
   }
 
   /**
    * 获取服务状态
    */
   async getServiceStatus(): Promise<ApiResponse<ServiceStatusResponse>> {
-    return apiClient.get<ServiceStatusResponse>('/');
+    return apiClient.get<ServiceStatusResponse>('/v1/status');
   }
 
   /**
@@ -36,7 +36,7 @@ export class ExtractionService {
   async extractFromText(
     request: ExtractionRequest
   ): Promise<ApiResponse<ExtractionResult>> {
-    return apiClient.post<ExtractionResult>('/extract', request);
+    return apiClient.post<ExtractionResult>('/v1/extraction/analyze', request);
   }
 
   /**

@@ -218,6 +218,9 @@ class ApiClient {
 // 创建API客户端实例
 export const apiClient = new ApiClient();
 
+// 导出ApiClient类
+export { ApiClient };
+
 // 扩展axios配置类型
 declare module 'axios' {
   interface AxiosRequestConfig {
